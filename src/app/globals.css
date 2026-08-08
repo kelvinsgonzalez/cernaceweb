@@ -1,26 +1,125 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brand-primary: #246bce;
+  --color-brand-dark: #153b6d;
+  --color-brand-sky: #eaf5ff;
+  --color-brand-green: #3baa74;
+  --color-brand-coral: #f27c6b;
+  --color-brand-yellow: #f6c453;
+
+  --color-canvas: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-line: #dde3eb;
+  --color-ink: #172033;
+  --color-ink-soft: #5e687a;
+  --color-danger: #c83e4d;
+
+  /* pares de estado, cada uno cumple contraste AA sobre su fondo */
+  --color-ok-bg: #e6f4ec;
+  --color-ok-fg: #1b6647;
+  --color-warn-bg: #fdf3dc;
+  --color-warn-fg: #7a5a0f;
+  --color-bad-bg: #fbe9e6;
+  --color-bad-fg: #8e3626;
+
+  --font-heading: var(--fuente-poppins), Poppins, ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--fuente-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* 1rem = 16px, respetando la preferencia del navegador */
+  font-size: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+/* Los párrafos de lectura corrida no pasan de ~80 caracteres. */
+.medida-lectura {
+  max-width: 68ch;
+}
+
+/* Se oculta a la vista pero sigue disponible para lectores de pantalla.
+   Al recibir foco se revela (lo usa el enlace de salto). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.visually-hidden:focus,
+.visually-hidden:focus-visible,
+.visually-hidden:active {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 100;
+  width: auto;
+  height: auto;
+  padding: 0.75rem 1.25rem;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border: 2px solid var(--color-brand-dark);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-brand-dark);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Sobre superficies oscuras el contorno azul se pierde: se usa el amarillo. */
+.superficie-oscura :focus-visible {
+  outline-color: var(--color-brand-yellow);
+}
+
+main:focus {
+  outline: none;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

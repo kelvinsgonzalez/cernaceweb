@@ -1,0 +1,214 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { pasarela } from "@/lib/pasarela";
+import { registrarAuditoria } from "@/lib/sesion";
+import { fechaDesdeInput } from "@/lib/fechas";
+import {
+  erroresDeZod,
+  esquemaContacto,
+  esquemaDonacion,
+  esquemaInscripcionBeneficiario,
+  esquemaInscripcionPadrino,
+  type EstadoFormulario,
+} from "@/lib/formularios";
+
+/** Objetivo 5: inscripción de beneficiarios desde el sitio público. */
+export async function enviarInscripcionBeneficiario(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const parseo = esquemaInscripcionBeneficiario.safeParse(
+    Object.fromEntries(datos),
+  );
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const solicitud = await prisma.supportRequest.create({
+    data: {
+      nombreNino: v.nombreNino,
+      fechaNacimiento: fechaDesdeInput(v.fechaNacimiento),
+      sexo: v.sexo,
+      municipio: v.municipio,
+      departamento: v.departamento,
+      encargadoNombre: v.encargadoNombre,
+      encargadoParentesco: v.encargadoParentesco,
+      encargadoTelefono: v.encargadoTelefono,
+      encargadoEmail: v.encargadoEmail || null,
+      diagnostico: v.diagnostico || null,
+      programaSolicitado: v.programaSolicitado || null,
+      comentarios: v.comentarios || null,
+    },
+  });
+
+  await registrarAuditoria({
+    actor: v.encargadoEmail || "sitio-publico",
+    accion: "CREAR",
+    entidad: "SupportRequest",
+    entidadId: solicitud.id,
+    detalle: `Inscripción de beneficiario recibida: ${v.nombreNino}`,
+  });
+
+  return {
+    ok: "Recibimos la inscripción. El equipo de trabajo social se comunicará contigo en los próximos días hábiles.",
+  };
+}
+
+/** Objetivo 6: inscripción de padrinos desde el sitio público. */
+export async function enviarInscripcionPadrino(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const parseo = esquemaInscripcionPadrino.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const postulacion = await prisma.volunteerApplication.create({
+    data: {
+      nombre: v.nombre,
+      email: v.email,
+      telefono: v.telefono,
+      tipo: "PADRINO",
+      ocupacion: v.ocupacion || null,
+      aporteMensual: v.aporteMensual ? v.aporteMensual : null,
+      motivacion: v.motivacion || null,
+    },
+  });
+
+  await registrarAuditoria({
+    actor: v.email,
+    accion: "CREAR",
+    entidad: "VolunteerApplication",
+    entidadId: postulacion.id,
+    detalle: `Inscripción de padrino recibida: ${v.nombre}`,
+  });
+
+  return {
+    ok: "Gracias. Te contactaremos para asignarte un beneficiario y darte acceso al portal.",
+  };
+}
+
+export async function enviarContacto(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const parseo = esquemaContacto.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const mensaje = await prisma.contactMessage.create({
+    data: {
+      nombre: v.nombre,
+      email: v.email,
+      telefono: v.telefono || null,
+      asunto: v.asunto,
+      mensaje: v.mensaje,
+    },
+  });
+
+  await registrarAuditoria({
+    actor: v.email,
+    accion: "CREAR",
+    entidad: "ContactMessage",
+    entidadId: mensaje.id,
+    detalle: `Mensaje de contacto: ${v.asunto}`,
+  });
+
+  return { ok: "Mensaje enviado. Te responderemos al correo que indicaste." };
+}
+
+/**
+ * Objetivo 4, primer paso: se crea la donación en estado PENDIENTE con la
+ * referencia que devuelve la pasarela y se lleva al usuario a la pantalla de
+ * confirmación. Aquí no se piden ni se guardan datos de tarjeta.
+ */
+export async function iniciarDonacion(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const parseo = esquemaDonacion.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const intencion = await pasarela.crearIntencion({
+    monto: Number(v.monto),
+    moneda: "GTQ",
+    metodo: v.metodo,
+    descripcion: `Donación de ${v.donanteNombre}`,
+  });
+
+  const donacion = await prisma.donacion.create({
+    data: {
+      donanteNombre: v.donanteNombre,
+      donanteEmail: v.donanteEmail,
+      campaignId: v.campaignId || null,
+      monto: v.monto,
+      moneda: intencion.moneda,
+      metodo: v.metodo,
+      estado: "PENDIENTE",
+      referenciaPasarela: intencion.referencia,
+      recurrente: v.recurrente === "on",
+      mensaje: v.mensaje || null,
+    },
+  });
+
+  await registrarAuditoria({
+    actor: v.donanteEmail,
+    accion: "CREAR",
+    entidad: "Donacion",
+    entidadId: donacion.id,
+    detalle: `Donación iniciada por ${intencion.monto} GTQ · referencia ${intencion.referencia}`,
+  });
+
+  redirect(`/donar/pagar/${donacion.id}`);
+}
+
+/** Objetivo 4, segundo paso: confirmación simulada del pago. */
+export async function confirmarDonacion(datos: FormData) {
+  const id = String(datos.get("id") ?? "");
+  const aprobar = String(datos.get("aprobar") ?? "") === "si";
+
+  const donacion = await prisma.donacion.findUnique({ where: { id } });
+  if (!donacion) redirect("/donar");
+
+  const resultado = await pasarela.confirmar(
+    donacion.referenciaPasarela,
+    aprobar,
+  );
+
+  await prisma.donacion.update({
+    where: { id },
+    data: { estado: resultado.aprobado ? "COMPLETADA" : "FALLIDA" },
+  });
+
+  await registrarAuditoria({
+    actor: donacion.donanteEmail,
+    accion: resultado.aprobado ? "PAGO_APROBADO" : "PAGO_RECHAZADO",
+    entidad: "Donacion",
+    entidadId: donacion.id,
+    detalle: `${resultado.mensaje} Referencia ${donacion.referenciaPasarela}`,
+  });
+
+  redirect(`/donar/gracias/${donacion.id}`);
+}

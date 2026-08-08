@@ -1,0 +1,528 @@
+// Esquema de datos de CERNACE.
+// Prisma 7: el generador es `prisma-client` y el cliente se importa desde la
+// ruta generada (src/generated/prisma), no desde "@prisma/client".
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Sexo {
+  MASCULINO
+  FEMENINO
+}
+
+enum EstadoBeneficiario {
+  ACTIVO
+  INACTIVO
+  EGRESADO
+}
+
+enum EstadoExpediente {
+  COMPLETO
+  EN_REVISION
+  INCOMPLETO
+}
+
+enum NivelVulnerabilidad {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum EstadoDonacion {
+  PENDIENTE
+  COMPLETADA
+  FALLIDA
+  REEMBOLSADA
+}
+
+enum EstadoSolicitud {
+  NUEVA
+  EN_REVISION
+  APROBADA
+  RECHAZADA
+}
+
+enum ModalidadPadrinazgo {
+  MENSUAL
+  TRIMESTRAL
+  ANUAL
+  UNICO
+}
+
+enum EstadoPublicacion {
+  BORRADOR
+  PUBLICADO
+}
+
+// ---------------------------------------------------------------------------
+// Acceso: usuarios, roles y permisos (los permisos viven en la base)
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  nombre       String
+  email        String     @unique
+  passwordHash String
+  cargo        String?
+  activo       Boolean    @default(true)
+  ultimoAcceso DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  roles        UserRole[]
+  padrino      Padrino?
+
+  @@map("usuarios")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  clave       String           @unique
+  nombre      String
+  descripcion String?
+  createdAt   DateTime         @default(now())
+  usuarios    UserRole[]
+  permisos    RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  clave       String           @unique
+  nombre      String
+  descripcion String?
+  modulo      String
+  roles       RolePermission[]
+
+  @@map("permisos")
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("usuarios_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("roles_permisos")
+}
+
+// ---------------------------------------------------------------------------
+// Beneficiarios y expediente
+// ---------------------------------------------------------------------------
+
+model Programa {
+  id             String         @id @default(cuid())
+  nombre         String
+  descripcion    String
+  icono          String         @default("HeartHandshake")
+  activo         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  beneficiarios  Beneficiario[]
+
+  @@map("programas")
+}
+
+model Beneficiario {
+  id                String             @id @default(cuid())
+  codigoExpediente  String             @unique
+  nombres           String
+  apellidos         String
+  fechaNacimiento   DateTime           @db.Date
+  sexo              Sexo
+  cui               String?            @unique
+  lugarNacimiento   String?
+  idiomaHogar       String?
+  tipoSangre        String?
+  direccion         String?
+  municipio         String
+  departamento      String
+  zonaResidencia    String?
+  encargadoNombre   String
+  encargadoParentesco String
+  encargadoTelefono String
+  encargadoEmail    String?
+  fechaIngreso      DateTime           @db.Date
+  programaId        String
+  estado            EstadoBeneficiario @default(ACTIVO)
+  estadoExpediente  EstadoExpediente   @default(EN_REVISION)
+  publicadoEnGaleria Boolean           @default(false)
+  resumenPublico    String?
+  fotoUrl           String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  programa          Programa           @relation(fields: [programaId], references: [id])
+  expedienteClinico ExpedienteClinico?
+  fichaSocioeconomica FichaSocioeconomica?
+  evaluaciones      EvaluacionClinica[]
+  documentos        Documento[]
+  seguimientos      Seguimiento[]
+  citas             Cita[]
+  padrinazgos       Padrinazgo[]
+
+  @@index([programaId])
+  @@map("beneficiarios")
+}
+
+model ExpedienteClinico {
+  id                  String       @id @default(cuid())
+  beneficiarioId      String       @unique
+  diagnosticoPrincipal String
+  codigoCie10         String?
+  fechaDiagnostico    DateTime?    @db.Date
+  tipoDiscapacidad    String
+  gradoDependencia    String
+  medicoTratante      String?
+  alergias            String?
+  medicamentos        String?
+  antecedentes        String?
+  terapias            String[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  beneficiario        Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@map("expedientes_clinicos")
+}
+
+model EvaluacionClinica {
+  id             String       @id @default(cuid())
+  beneficiarioId String
+  fecha          DateTime     @db.Date
+  tipo           String
+  profesional    String
+  resultado      String
+  documento      String?
+  createdAt      DateTime     @default(now())
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiarioId])
+  @@map("evaluaciones_clinicas")
+}
+
+model FichaSocioeconomica {
+  id                   String              @id @default(cuid())
+  beneficiarioId       String              @unique
+  integrantesHogar     Int
+  ingresoMensual       Decimal             @db.Decimal(10, 2)
+  fuenteIngreso        String
+  tipoVivienda         String
+  materialConstruccion String
+  escolaridadEncargado String
+  serviciosBasicos     String[]
+  observaciones        String?
+  nivelVulnerabilidad  NivelVulnerabilidad
+  elegibleBeca         Boolean             @default(false)
+  fechaEstudio         DateTime            @db.Date
+  realizadoPor         String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  beneficiario         Beneficiario        @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@map("fichas_socioeconomicas")
+}
+
+model Documento {
+  id              String       @id @default(cuid())
+  beneficiarioId  String
+  nombre          String
+  categoria       String
+  tipoMime        String
+  tamanoBytes     Int
+  url             String
+  vigente         Boolean      @default(true)
+  fechaVencimiento DateTime?   @db.Date
+  subidoPor       String
+  createdAt       DateTime     @default(now())
+  beneficiario    Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiarioId])
+  @@map("documentos")
+}
+
+/// La bisagra del objetivo 3: `visibleParaPadrino` decide qué avances
+/// puede consultar el padrino en su portal.
+model Seguimiento {
+  id                 String       @id @default(cuid())
+  beneficiarioId     String
+  fecha              DateTime     @db.Date
+  area               String
+  titulo             String
+  descripcion        String
+  visibleParaPadrino Boolean      @default(false)
+  registradoPor      String
+  createdAt          DateTime     @default(now())
+  beneficiario       Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiarioId])
+  @@map("seguimientos")
+}
+
+model Cita {
+  id             String       @id @default(cuid())
+  beneficiarioId String
+  fecha          DateTime
+  tipo           String
+  profesional    String
+  createdAt      DateTime     @default(now())
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiarioId])
+  @@map("citas")
+}
+
+// ---------------------------------------------------------------------------
+// Padrinos, donaciones y campañas
+// ---------------------------------------------------------------------------
+
+model Padrino {
+  id          String       @id @default(cuid())
+  userId      String?      @unique
+  nombre      String
+  email       String       @unique
+  telefono    String?
+  direccion   String?
+  ocupacion   String?
+  nit         String?
+  activo      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  padrinazgos Padrinazgo[]
+  donaciones  Donacion[]
+
+  @@map("padrinos")
+}
+
+model Padrinazgo {
+  id             String              @id @default(cuid())
+  padrinoId      String
+  beneficiarioId String
+  aporteMensual  Decimal             @db.Decimal(10, 2)
+  modalidad      ModalidadPadrinazgo @default(MENSUAL)
+  activo         Boolean             @default(true)
+  fechaInicio    DateTime            @db.Date
+  fechaFin       DateTime?           @db.Date
+  createdAt      DateTime            @default(now())
+  padrino        Padrino             @relation(fields: [padrinoId], references: [id], onDelete: Cascade)
+  beneficiario   Beneficiario        @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@unique([padrinoId, beneficiarioId])
+  @@index([beneficiarioId])
+  @@map("padrinazgos")
+}
+
+model Donacion {
+  id                 String         @id @default(cuid())
+  donanteNombre      String
+  donanteEmail       String
+  padrinoId          String?
+  campaignId         String?
+  monto              Decimal        @db.Decimal(10, 2)
+  moneda             String         @default("GTQ")
+  metodo             String
+  estado             EstadoDonacion @default(PENDIENTE)
+  referenciaPasarela String         @unique
+  recurrente         Boolean        @default(false)
+  mensaje            String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  padrino            Padrino?       @relation(fields: [padrinoId], references: [id], onDelete: SetNull)
+  campaign           Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@map("donaciones")
+}
+
+model Campaign {
+  id          String     @id @default(cuid())
+  titulo      String
+  slug        String     @unique
+  descripcion String
+  meta        Decimal    @db.Decimal(10, 2)
+  recaudado   Decimal    @default(0) @db.Decimal(10, 2)
+  fechaInicio DateTime   @db.Date
+  fechaFin    DateTime?  @db.Date
+  activa      Boolean    @default(true)
+  imagenUrl   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  donaciones  Donacion[]
+
+  @@map("campanas")
+}
+
+// ---------------------------------------------------------------------------
+// Contenido
+// ---------------------------------------------------------------------------
+
+model Story {
+  id            String            @id @default(cuid())
+  titulo        String
+  slug          String            @unique
+  resumen       String
+  contenido     String
+  protagonista  String
+  programa      String?
+  imagenUrl     String?
+  estado        EstadoPublicacion @default(PUBLICADO)
+  publicadaEn   DateTime          @default(now())
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@map("historias")
+}
+
+model Post {
+  id          String            @id @default(cuid())
+  titulo      String
+  slug        String            @unique
+  resumen     String
+  contenido   String
+  autor       String
+  categoria   String
+  estado      EstadoPublicacion @default(PUBLICADO)
+  publicadoEn DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("entradas_blog")
+}
+
+model Event {
+  id          String            @id @default(cuid())
+  titulo      String
+  slug        String            @unique
+  descripcion String
+  lugar       String
+  inicia      DateTime
+  termina     DateTime?
+  cupo        Int?
+  estado      EstadoPublicacion @default(PUBLICADO)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("eventos")
+}
+
+model Media {
+  id          String   @id @default(cuid())
+  nombre      String
+  url         String
+  tipoMime    String
+  tamanoBytes Int
+  alt         String?
+  subidoPor   String
+  createdAt   DateTime @default(now())
+
+  @@map("medios")
+}
+
+// ---------------------------------------------------------------------------
+// Formularios entrantes
+// ---------------------------------------------------------------------------
+
+/// Inscripción de beneficiarios enviada desde el sitio público.
+model SupportRequest {
+  id                  String          @id @default(cuid())
+  nombreNino          String
+  fechaNacimiento     DateTime        @db.Date
+  sexo                Sexo
+  municipio           String
+  departamento        String
+  encargadoNombre     String
+  encargadoParentesco String
+  encargadoTelefono   String
+  encargadoEmail      String?
+  diagnostico         String?
+  programaSolicitado  String?
+  comentarios         String?
+  estado              EstadoSolicitud @default(NUEVA)
+  notaInterna         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@map("solicitudes_inscripcion")
+}
+
+/// Inscripción de padrinos y de voluntariado enviada desde el sitio público.
+model VolunteerApplication {
+  id           String          @id @default(cuid())
+  nombre       String
+  email        String
+  telefono     String
+  tipo         String
+  ocupacion    String?
+  disponibilidad String?
+  aporteMensual Decimal?       @db.Decimal(10, 2)
+  motivacion   String?
+  estado       EstadoSolicitud @default(NUEVA)
+  notaInterna  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@map("postulaciones")
+}
+
+model ContactMessage {
+  id        String          @id @default(cuid())
+  nombre    String
+  email     String
+  telefono  String?
+  asunto    String
+  mensaje   String
+  estado    EstadoSolicitud @default(NUEVA)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@map("mensajes_contacto")
+}
+
+// ---------------------------------------------------------------------------
+// Configuración y auditoría
+// ---------------------------------------------------------------------------
+
+model Setting {
+  id          String   @id @default(cuid())
+  clave       String   @unique
+  valor       String
+  descripcion String?
+  grupo       String   @default("general")
+  updatedAt   DateTime @updatedAt
+
+  @@map("configuracion")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  accion    String
+  entidad   String
+  entidadId String?
+  detalle   String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entidad])
+  @@index([accion])
+  @@map("bitacora")
+}
