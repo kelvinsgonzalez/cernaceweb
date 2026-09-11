@@ -1,0 +1,153 @@
+===========================================================================
+  CERNACE - PUNTOS DE RETORNO Y CÓMO REGRESAR
+  Actualizado: 10/09/2026
+===========================================================================
+
+Este archivo explica cómo devolver el proyecto a un estado anterior si algo
+no sale como quieres. Todos los comandos se escriben en la terminal, parado
+en la carpeta del proyecto:
+
+    cd "/Volumes/iKelgero 1/cernace-web-2"
+
+
+---------------------------------------------------------------------------
+1. PUNTOS DE RETORNO DISPONIBLES (del más nuevo al más viejo)
+---------------------------------------------------------------------------
+
+  942edd2  -  10/09/2026 22:29
+              "Avance del proyecto y ajustes de la landing page"
+              >>> ESTE ES EL ESTADO ACTUAL <<<
+              Guarda todo el trabajo del expediente, portal y panel
+              (migraciones de Prisma, documentación, recursos públicos).
+              Y en la landing page:
+                - Las tarjetas de Programas ya no muestran el conteo de
+                  "N beneficiarios inscritos" ni el párrafo introductorio.
+                - Se agregó el bloque "También queremos ayudarte" al final
+                  de la sección Programas, con enlace a la inscripción.
+                - Se eliminó la sección "Inscribir a un niño" con su
+                  formulario. Los botones ahora llevan a la página
+                  /inscripcion/beneficiario, que tiene el mismo formulario.
+
+  02189c0  -  08/08/2026 14:43
+              "Plataforma CERNACE completa: sitio público, expedientes,
+               portal y panel"
+              La landing page TODAVÍA tenía la sección "Inscribir a un
+              niño" con su formulario, los conteos en las tarjetas de
+              Programas y el párrafo introductorio.
+
+  f49fa90  -  08/08/2026 13:49
+              "Initial commit from Create Next App"
+              Proyecto vacío recién creado. Aquí no hay nada de CERNACE.
+
+
+---------------------------------------------------------------------------
+2. ANTES DE REGRESAR: VER QUÉ CAMBIÓ
+---------------------------------------------------------------------------
+
+Ver el resumen de todos los puntos de retorno:
+
+    git log --oneline
+
+Ver exactamente qué cambió en la landing page el 10/09/2026:
+
+    git show 942edd2 -- "src/app/(publico)/page.tsx"
+
+Ver qué has tocado desde el último punto guardado (lo que aún no se guarda):
+
+    git status
+
+
+---------------------------------------------------------------------------
+3. OPCIÓN A - DESHACER CAMBIOS NUEVOS SIN GUARDAR
+   (Usar cuando: editaste algo hoy, no te gustó, y quieres volver al
+    último punto guardado.)
+---------------------------------------------------------------------------
+
+Todo el proyecto:
+
+    git restore .
+
+Un solo archivo, por ejemplo la landing page:
+
+    git restore "src/app/(publico)/page.tsx"
+
+OJO: esto borra lo que hiciste después del último punto guardado. Lo que
+ya está guardado en un commit no se toca.
+
+
+---------------------------------------------------------------------------
+4. OPCIÓN B - REGRESAR SOLO UN ARCHIVO A COMO ESTABA ANTES
+   (La más útil. Usar cuando: no te gustó cómo quedó la landing page pero
+    quieres conservar TODO lo demás del avance.)
+---------------------------------------------------------------------------
+
+Devolver la landing page a como estaba el 08/08/2026, es decir, con la
+sección "Inscribir a un niño", su formulario y los conteos de beneficiarios:
+
+    git checkout 02189c0 -- "src/app/(publico)/page.tsx"
+
+Esto regresa ÚNICAMENTE ese archivo. El expediente, el portal y el panel
+quedan intactos. Después, para dejarlo guardado:
+
+    git add "src/app/(publico)/page.tsx"
+    git commit -m "Regresa la landing page a la versión anterior"
+
+
+---------------------------------------------------------------------------
+5. OPCIÓN C - DESHACER EL ÚLTIMO PUNTO GUARDADO, SIN PERDER ARCHIVOS
+   (Usar cuando: guardaste antes de tiempo y quieres seguir editando.)
+---------------------------------------------------------------------------
+
+    git reset --soft HEAD~1
+
+El commit desaparece de la lista, pero TODOS los archivos se quedan como
+están, marcados como pendientes. No se pierde nada.
+
+
+---------------------------------------------------------------------------
+6. OPCIÓN D - REVERTIR UN PUNTO GUARDADO DEJANDO CONSTANCIA
+   (Usar cuando: quieres deshacer algo ya guardado pero sin borrar el
+    historial. Es la forma más segura.)
+---------------------------------------------------------------------------
+
+    git revert 942edd2
+
+Crea un punto NUEVO que deshace lo del punto 942edd2. El historial queda
+completo: se ve lo que se hizo y lo que se deshizo.
+
+
+---------------------------------------------------------------------------
+7. LO QUE NO CONVIENE HACER
+---------------------------------------------------------------------------
+
+    git reset --hard        <-- NO
+
+Borra trabajo sin posibilidad de recuperarlo. Las opciones A, B, C y D de
+arriba cubren prácticamente cualquier arrepentimiento sin ese riesgo.
+
+Si por accidente ya lo corriste, esto lista TODO lo que git recuerda y a
+veces permite rescatar lo perdido:
+
+    git reflog
+
+
+---------------------------------------------------------------------------
+8. NOTAS IMPORTANTES
+---------------------------------------------------------------------------
+
+- El proyecto NO tiene un repositorio remoto configurado (no está en
+  GitHub ni en ningún servidor). Todo el respaldo vive únicamente en este
+  disco. Si el disco falla, se pierde. Vale la pena subirlo a GitHub.
+
+- La rama de trabajo es "main".
+
+- El formulario de inscripción de niños NO se perdió al quitarlo de la
+  landing page. Sigue funcionando en su propia página:
+      src/app/(publico)/inscripcion/beneficiario/page.tsx
+  y se ve en el sitio entrando a:  /inscripcion/beneficiario
+
+- Las fotos subidas (carpeta "almacenamiento/") NO se guardan en los
+  puntos de retorno a propósito, porque están excluidas en .gitignore.
+  Esas hay que respaldarlas aparte, copiando la carpeta.
+
+===========================================================================
