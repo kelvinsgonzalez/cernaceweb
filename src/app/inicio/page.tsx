@@ -4,10 +4,7 @@ import { PERMISOS } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Punto de aterrizaje tras iniciar sesión: decide el destino según lo que el
- * rol puede hacer. El personal va al panel; el padrino, a su portal.
- */
+/** Reparte al panel o al portal según los permisos del rol. */
 export default async function InicioPage() {
   const usuario = await requireSesion();
 
@@ -21,6 +18,10 @@ export default async function InicioPage() {
 
   if (usuario.permisos.includes(PERMISOS.PORTAL_PADRINO)) {
     redirect("/portal");
+  }
+
+  if (usuario.permisos.includes(PERMISOS.PORTAL_BENEFICIARIO)) {
+    redirect("/mi-expediente");
   }
 
   redirect("/sin-acceso");

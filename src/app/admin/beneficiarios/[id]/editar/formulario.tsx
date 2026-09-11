@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import {
   Boton,
-  CampoArea,
   CampoSelect,
   CampoTexto,
   MensajeFormulario,
@@ -11,7 +10,10 @@ import {
 import { ESTADO_INICIAL, type EstadoFormulario } from "@/lib/formularios";
 
 export type ValoresBeneficiario = {
+  /** Vacío al abrir un expediente nuevo: todavía no hay fila que actualizar. */
   id: string;
+  codigoExpediente: string;
+  fechaIngreso: string;
   nombres: string;
   apellidos: string;
   fechaNacimiento: string;
@@ -24,21 +26,33 @@ export type ValoresBeneficiario = {
   municipio: string;
   departamento: string;
   zonaResidencia: string;
+  sector: string;
+  escolaridad: string;
+  telefono: string;
   encargadoNombre: string;
   encargadoParentesco: string;
   encargadoTelefono: string;
   encargadoEmail: string;
+  encargadoSexo: string;
+  encargadoEdad: string;
+  encargadoIdentificacion: string;
+  encargadoEstadoCivil: string;
+  encargadoSituacionLaboral: string;
+  encargadoEscolaridad: string;
+  encargadoOficio: string;
+  encargadoIntegrantes: string;
+  encargadoDireccion: string;
   programaId: string;
+  solicitaPatrocinio: boolean;
   estado: string;
   estadoExpediente: string;
-  publicadoEnGaleria: boolean;
-  resumenPublico: string;
 };
 
 export function FormularioEditar({
   accion,
   valores,
   programas,
+  modo = "editar",
 }: {
   accion: (
     estado: EstadoFormulario,
@@ -46,9 +60,14 @@ export function FormularioEditar({
   ) => Promise<EstadoFormulario>;
   valores: ValoresBeneficiario;
   programas: { id: string; nombre: string }[];
+  /** El mismo formulario abre expedientes y los corrige: los campos son los
+   *  mismos y así no se separan con el tiempo. Lo único que cambia es el `id`
+   *  oculto, los textos de ayuda y el botón. */
+  modo?: "editar" | "crear";
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
+  const creando = modo === "crear";
 
   return (
     <form action={enviar} className="flex flex-col gap-8" noValidate>
@@ -57,12 +76,37 @@ export function FormularioEditar({
         <MensajeFormulario tipo="error">{estado.error}</MensajeFormulario>
       ) : null}
 
-      <input type="hidden" name="id" value={valores.id} />
+      {creando ? null : (
+        <input type="hidden" name="id" value={valores.id} />
+      )}
 
       <fieldset className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <legend className="mb-3 font-heading text-lg font-semibold text-ink">
           Identificación
         </legend>
+        <CampoTexto
+          id="codigoExpediente"
+          name="codigoExpediente"
+          etiqueta="Código de expediente"
+          ayuda={
+            creando
+              ? "Se propone el siguiente de la serie; cámbialo si el expediente ya traía número."
+              : "Cambiarlo renombra el expediente en todo el sistema. Solo si estaba mal."
+          }
+          requerido
+          defaultValue={valores.codigoExpediente}
+          error={e.codigoExpediente}
+          autoComplete="off"
+        />
+        <CampoTexto
+          id="fechaIngreso"
+          name="fechaIngreso"
+          type="date"
+          etiqueta="Fecha de ingreso"
+          requerido
+          defaultValue={valores.fechaIngreso}
+          error={e.fechaIngreso}
+        />
         <CampoTexto
           id="nombres"
           name="nombres"
@@ -164,12 +208,39 @@ export function FormularioEditar({
           defaultValue={valores.departamento}
           error={e.departamento}
         />
+        <CampoTexto
+          id="sector"
+          name="sector"
+          etiqueta="Sector o caserío"
+          defaultValue={valores.sector}
+          error={e.sector}
+        />
+        <CampoTexto
+          id="escolaridad"
+          name="escolaridad"
+          etiqueta="Escolaridad"
+          ayuda="Grado que cursa o «No escolarizado»."
+          defaultValue={valores.escolaridad}
+          error={e.escolaridad}
+        />
+        <CampoTexto
+          id="telefono"
+          name="telefono"
+          etiqueta="Teléfono del beneficiario"
+          defaultValue={valores.telefono}
+          error={e.telefono}
+        />
       </fieldset>
 
       <fieldset className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <legend className="mb-3 font-heading text-lg font-semibold text-ink">
           Encargado
         </legend>
+        <p className="medida-lectura text-sm text-ink-soft sm:col-span-2 lg:col-span-3">
+          {creando
+            ? "Se crea una ficha de encargado nueva con estos datos. Si el encargado ya tiene otros beneficiarios inscritos, une las fichas después desde el expediente."
+            : "Estos datos pertenecen a la ficha del encargado. Si tiene otros beneficiarios inscritos, el cambio les alcanza también."}
+        </p>
         <CampoTexto
           id="encargadoNombre"
           name="encargadoNombre"
@@ -198,9 +269,85 @@ export function FormularioEditar({
           id="encargadoEmail"
           name="encargadoEmail"
           type="email"
-          etiqueta="Correo electrónico"
+          etiqueta="Correo electrónico (opcional)"
           defaultValue={valores.encargadoEmail}
           error={e.encargadoEmail}
+        />
+        <CampoSelect
+          id="encargadoSexo"
+          name="encargadoSexo"
+          etiqueta="Sexo"
+          defaultValue={valores.encargadoSexo}
+          error={e.encargadoSexo}
+        >
+          <option value="">Sin indicar</option>
+          <option value="MASCULINO">Masculino</option>
+          <option value="FEMENINO">Femenino</option>
+        </CampoSelect>
+        <CampoTexto
+          id="encargadoEdad"
+          name="encargadoEdad"
+          type="number"
+          min={0}
+          etiqueta="Edad"
+          defaultValue={valores.encargadoEdad}
+          error={e.encargadoEdad}
+        />
+        <CampoTexto
+          id="encargadoIdentificacion"
+          name="encargadoIdentificacion"
+          etiqueta="No. de identificación"
+          defaultValue={valores.encargadoIdentificacion}
+          error={e.encargadoIdentificacion}
+        />
+        <CampoTexto
+          id="encargadoEstadoCivil"
+          name="encargadoEstadoCivil"
+          etiqueta="Estado civil"
+          defaultValue={valores.encargadoEstadoCivil}
+          error={e.encargadoEstadoCivil}
+        />
+        <CampoSelect
+          id="encargadoSituacionLaboral"
+          name="encargadoSituacionLaboral"
+          etiqueta="Situación laboral"
+          defaultValue={valores.encargadoSituacionLaboral}
+          error={e.encargadoSituacionLaboral}
+        >
+          <option value="">Sin indicar</option>
+          <option value="EMPLEADO">Empleado</option>
+          <option value="DESEMPLEADO">Desempleado</option>
+        </CampoSelect>
+        <CampoTexto
+          id="encargadoEscolaridad"
+          name="encargadoEscolaridad"
+          etiqueta="Escolaridad del encargado"
+          defaultValue={valores.encargadoEscolaridad}
+          error={e.encargadoEscolaridad}
+        />
+        <CampoTexto
+          id="encargadoOficio"
+          name="encargadoOficio"
+          etiqueta="Oficio"
+          defaultValue={valores.encargadoOficio}
+          error={e.encargadoOficio}
+        />
+        <CampoTexto
+          id="encargadoIntegrantes"
+          name="encargadoIntegrantes"
+          type="number"
+          min={0}
+          etiqueta="No. de integrantes de la familia"
+          defaultValue={valores.encargadoIntegrantes}
+          error={e.encargadoIntegrantes}
+        />
+        <CampoTexto
+          id="encargadoDireccion"
+          name="encargadoDireccion"
+          etiqueta="Dirección del encargado"
+          defaultValue={valores.encargadoDireccion}
+          error={e.encargadoDireccion}
+          className="lg:col-span-2"
         />
       </fieldset>
 
@@ -246,39 +393,38 @@ export function FormularioEditar({
           <option value="EN_REVISION">En revisión</option>
           <option value="INCOMPLETO">Incompleto</option>
         </CampoSelect>
-      </fieldset>
 
-      <fieldset className="flex flex-col gap-5">
-        <legend className="mb-3 font-heading text-lg font-semibold text-ink">
-          Publicación en la galería
-        </legend>
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 rounded-[var(--radius-sm)] border border-line bg-canvas p-4 sm:col-span-2 lg:col-span-3">
           <input
-            id="publicadoEnGaleria"
-            name="publicadoEnGaleria"
+            id="solicitaPatrocinio"
+            name="solicitaPatrocinio"
             type="checkbox"
-            defaultChecked={valores.publicadoEnGaleria}
+            defaultChecked={valores.solicitaPatrocinio}
             className="mt-1 size-4 rounded border-line"
           />
-          <label htmlFor="publicadoEnGaleria" className="medida-lectura text-sm text-ink">
-            Publicar en la galería pública. Solo se muestran el primer nombre,
-            la edad y el programa; nunca apellidos, diagnóstico ni datos
-            familiares.
+          <label
+            htmlFor="solicitaPatrocinio"
+            className="medida-lectura text-sm text-ink"
+          >
+            <span className="font-semibold">
+              La familia pide que se le busque padrino.
+            </span>{" "}
+            Es la petición de la familia, no la autorización para publicarlo:
+            esa se da aparte, en Publicación, y hacen falta las dos para que
+            salga en el sitio con su foto principal.
           </label>
         </div>
-        <CampoArea
-          id="resumenPublico"
-          name="resumenPublico"
-          etiqueta="Resumen público"
-          ayuda="Texto breve que aparece en la galería. Evita cualquier dato identificable o clínico."
-          defaultValue={valores.resumenPublico}
-          error={e.resumenPublico}
-        />
       </fieldset>
 
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">
-          {pendiente ? "Guardando…" : "Guardar cambios"}
+          {pendiente
+            ? creando
+              ? "Abriendo…"
+              : "Guardando…"
+            : creando
+              ? "Abrir expediente"
+              : "Guardar cambios"}
         </Boton>
       </div>
     </form>

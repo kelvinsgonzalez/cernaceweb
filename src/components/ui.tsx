@@ -23,7 +23,7 @@ export function Tarjeta({
   return (
     <div
       className={cn(
-        "rounded-[var(--radius-md)] border border-line bg-surface",
+        "rounded-[var(--radius-md)] border border-line bg-surface shadow-suave",
         className,
       )}
       {...props}
@@ -53,7 +53,10 @@ export function TarjetaCabecera({
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
       <div className="flex items-start gap-3">
         {icono ? (
-          <span aria-hidden="true" className="mt-0.5 text-brand-primary">
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-brand-sky text-brand-primary"
+          >
             {icono}
           </span>
         ) : null}
@@ -79,15 +82,18 @@ type Variante = "solido" | "contorno" | "suave" | "peligro";
 
 const estilosBoton: Record<Variante, string> = {
   solido:
-    "bg-brand-primary text-white hover:bg-brand-dark border border-transparent",
+    "bg-brand-primary text-white border border-transparent shadow-suave hover:bg-brand-dark hover:shadow-alta",
   contorno:
-    "bg-surface text-brand-dark border border-brand-primary hover:bg-brand-sky",
-  suave: "bg-brand-sky text-brand-dark border border-transparent hover:bg-[#dbecfd]",
-  peligro: "bg-danger text-white border border-transparent hover:bg-[#a8323f]",
+    "bg-surface text-brand-dark border border-brand-primary/45 hover:border-brand-primary hover:bg-brand-sky",
+  suave: "bg-brand-sky text-brand-dark border border-transparent hover:bg-crema",
+  peligro:
+    "bg-danger text-white border border-transparent shadow-suave hover:bg-danger-dark",
 };
 
+// El botón se levanta un pixel al pasar el puntero; con `prefers-reduced-motion`
+// la regla global deja la transición en cero y solo cambia el color.
 const baseBoton =
-  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2.5 text-sm font-semibold transition duration-300 ease-suave hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0";
 
 export function Boton({
   variante = "solido",
@@ -119,11 +125,11 @@ export function EnlaceBoton({
 type Tono = "ok" | "warn" | "bad" | "neutro" | "info";
 
 const estilosChip: Record<Tono, string> = {
-  ok: "bg-ok-bg text-ok-fg",
-  warn: "bg-warn-bg text-warn-fg",
-  bad: "bg-bad-bg text-bad-fg",
+  ok: "bg-ok-bg text-ok-fg ring-1 ring-ok-fg/15",
+  warn: "bg-warn-bg text-warn-fg ring-1 ring-warn-fg/15",
+  bad: "bg-bad-bg text-bad-fg ring-1 ring-bad-fg/15",
   neutro: "bg-canvas text-ink-soft border border-line",
-  info: "bg-brand-sky text-brand-dark",
+  info: "bg-brand-sky text-brand-dark ring-1 ring-brand-primary/20",
 };
 
 const iconoPorTono: Record<Tono, ReactNode> = {
@@ -270,16 +276,18 @@ export function Kpi({
   icono?: ReactNode;
 }) {
   return (
-    <Tarjeta className="p-5">
+    <Tarjeta className="tarjeta-viva p-5">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-ink-soft">{etiqueta}</p>
+        <p className="rotulo text-[0.68rem] tracking-[0.12em] text-ink-soft">{etiqueta}</p>
         {icono ? (
           <span aria-hidden="true" className="text-brand-primary">
             {icono}
           </span>
         ) : null}
       </div>
-      <p className="mt-2 font-heading text-3xl font-semibold text-ink">{valor}</p>
+      <p className="mt-2 font-heading text-3xl font-semibold tracking-tight text-brand-dark sm:text-4xl">
+        {valor}
+      </p>
       {detalle ? <p className="mt-1 text-sm text-ink-soft">{detalle}</p> : null}
     </Tarjeta>
   );
@@ -360,10 +368,10 @@ export function Progreso({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={etiqueta}
-        className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-canvas"
+        className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-brand-sky ring-1 ring-line"
       >
         <div
-          className="h-full rounded-full bg-brand-green"
+          className="h-full rounded-full bg-linear-to-r from-brand-primary to-brand-green transition-[width] duration-700 ease-suave"
           style={{ width: `${porcentaje}%` }}
         />
       </div>
@@ -376,7 +384,7 @@ export function Progreso({
    ------------------------------------------------------------------------- */
 
 const baseControl =
-  "w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/70 aria-[invalid=true]:border-danger";
+  "w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink transition-colors duration-200 placeholder:text-ink-soft/70 hover:border-brand-primary/45 focus:border-brand-primary aria-[invalid=true]:border-danger";
 
 export function CampoTexto({
   id,
@@ -388,7 +396,7 @@ export function CampoTexto({
   ...props
 }: ComponentProps<"input"> & {
   id: string;
-  etiqueta: string;
+  etiqueta: ReactNode;
   ayuda?: string;
   error?: string;
   requerido?: boolean;
@@ -442,7 +450,7 @@ export function CampoArea({
   ...props
 }: ComponentProps<"textarea"> & {
   id: string;
-  etiqueta: string;
+  etiqueta: ReactNode;
   ayuda?: string;
   error?: string;
   requerido?: boolean;
@@ -496,7 +504,7 @@ export function CampoSelect({
   ...props
 }: ComponentProps<"select"> & {
   id: string;
-  etiqueta: string;
+  etiqueta: ReactNode;
   ayuda?: string;
   error?: string;
   requerido?: boolean;

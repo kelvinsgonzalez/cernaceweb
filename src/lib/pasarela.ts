@@ -1,12 +1,7 @@
 /**
- * Pasarela de pago — MODO PRUEBA.
- *
- * Dos reglas que no se rompen:
- *  1. Todo el flujo está en modo prueba y lo declara visiblemente.
- *  2. No se guardan datos de tarjeta. El flujo nunca pide un número de tarjeta.
- *
- * Cambiar a Stripe o PayPal debe consistir en sustituir la implementación de
- * `Pasarela` por otra, sin tocar el resto de la aplicación.
+ * Pasarela en modo prueba: no se piden ni se guardan datos de tarjeta.
+ * Migrar a Stripe o PayPal debe limitarse a sustituir la implementación de
+ * `Pasarela`, sin tocar el resto de la aplicación.
  */
 
 export type IntencionPago = {
@@ -34,7 +29,6 @@ export interface Pasarela {
   confirmar(referencia: string, aprobar: boolean): Promise<ResultadoPago>;
 }
 
-/** Referencia legible tipo CER-SIM-8F3K2Q. */
 function generarReferencia(): string {
   const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let sufijo = "";

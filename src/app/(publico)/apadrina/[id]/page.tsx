@@ -4,8 +4,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EnlaceBoton, Tarjeta } from "@/components/ui";
 import { IconoPrograma } from "@/components/icono-programa";
+import { FotoBeneficiario } from "@/components/foto-beneficiario";
 import { calcularEdad } from "@/lib/fechas";
-import { primerNombre } from "@/lib/utils";
+import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -14,7 +15,12 @@ export async function generateMetadata({
 }) {
   const { id } = await params;
   const nino = await prisma.beneficiario.findFirst({
-    where: { id, publicadoEnGaleria: true, estado: "ACTIVO" },
+    where: {
+      id,
+      publicadoEnGaleria: true,
+      solicitaPatrocinio: true,
+      estado: "ACTIVO",
+    },
     select: { nombres: true },
   });
   if (!nino) return { title: "Perfil no disponible" };
@@ -28,16 +34,20 @@ export default async function PerfilPublicoPage({
 }) {
   const { id } = await params;
 
-  // Perfil público: la consulta selecciona únicamente los campos que se
-  // pueden publicar. Apellidos, CUI, diagnóstico y datos familiares no se
-  // traen de la base.
+  // Apellidos, CUI, diagnóstico y datos familiares no se traen de la base.
   const nino = await prisma.beneficiario.findFirst({
-    where: { id, publicadoEnGaleria: true, estado: "ACTIVO" },
+    where: {
+      id,
+      publicadoEnGaleria: true,
+      solicitaPatrocinio: true,
+      estado: "ACTIVO",
+    },
     select: {
       id: true,
       nombres: true,
       fechaNacimiento: true,
       resumenPublico: true,
+      fotoArchivo: true,
       programa: { select: { nombre: true, descripcion: true, icono: true } },
       padrinazgos: { where: { activo: true }, select: { id: true } },
     },
@@ -60,14 +70,13 @@ export default async function PerfilPublicoPage({
 
       <Tarjeta className="mt-6 p-8">
         <div className="flex flex-wrap items-center gap-5">
-          <span
-            aria-hidden="true"
-            className="flex size-20 items-center justify-center rounded-full bg-brand-yellow font-heading text-3xl font-bold text-brand-dark"
-          >
-            {nombre[0]}
-          </span>
+          <FotoBeneficiario
+            nombre={nombre}
+            fotoUrl={urlFotoBeneficiario(nino.id, nino.fotoArchivo)}
+            tamano={128}
+          />
           <div>
-            <h1 className="font-heading text-3xl font-bold text-ink">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
               {nombre}, {calcularEdad(nino.fechaNacimiento)} años
             </h1>
             <p className="mt-1 inline-flex items-center gap-2 text-brand-primary">

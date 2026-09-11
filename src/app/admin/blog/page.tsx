@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 const COLUMNAS = ["Entrada", "Categoría", "Autor", "Publicada", "Ruta", "Estado"];
 
 export default async function BlogPage() {
-  await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  await requirePermiso(PERMISOS.CONTENIDO_GESTIONAR);
 
   const entradas = await prisma.post.findMany({
     orderBy: { publicadoEn: "desc" },

@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Filter, Search, TriangleAlert, UserCheck, UserX, Users } from "lucide-react";
+import {
+  Filter,
+  FilePlus2,
+  Search,
+  TriangleAlert,
+  UserCheck,
+  UserX,
+  Users,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/sesion";
+import { requirePermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import {
   Boton,
@@ -41,7 +49,8 @@ export default async function BeneficiariosPage({
 }: {
   searchParams: Promise<{ q?: string; programa?: string; estado?: string }>;
 }) {
-  await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  const puedeAbrir = tienePermiso(usuario, PERMISOS.EXPEDIENTE_ESCRIBIR);
   const { q, programa, estado } = await searchParams;
 
   const busqueda = q?.trim() ?? "";
@@ -95,6 +104,14 @@ export default async function BeneficiariosPage({
       <EncabezadoPagina
         titulo="Beneficiarios"
         descripcion="Expedientes digitalizados y centralizados. Cada apertura queda registrada en la bitácora."
+        acciones={
+          puedeAbrir ? (
+            <EnlaceBoton href="/admin/beneficiarios/nuevo">
+              <FilePlus2 aria-hidden="true" className="size-4" />
+              Nuevo expediente
+            </EnlaceBoton>
+          ) : null
+        }
       />
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">

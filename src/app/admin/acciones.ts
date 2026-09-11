@@ -11,30 +11,8 @@ const esquemaEstado = z.object({
   estado: z.enum(["NUEVA", "EN_REVISION", "APROBADA", "RECHAZADA"]),
 });
 
-/** Cambia el estado de una inscripción de beneficiario recibida del sitio. */
-export async function cambiarEstadoSolicitud(datos: FormData) {
-  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
-  const parseo = esquemaEstado.safeParse(Object.fromEntries(datos));
-  if (!parseo.success) return;
-
-  const solicitud = await prisma.supportRequest.update({
-    where: { id: parseo.data.id },
-    data: { estado: parseo.data.estado },
-  });
-
-  await registrarAuditoria({
-    actor: usuario.email,
-    accion: "ACTUALIZAR",
-    entidad: "SupportRequest",
-    entidadId: solicitud.id,
-    detalle: `Solicitud de ${solicitud.nombreNino} marcada como ${parseo.data.estado}`,
-  });
-
-  revalidatePath("/admin/solicitudes");
-}
-
 export async function cambiarEstadoPostulacion(datos: FormData) {
-  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  const usuario = await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
   const parseo = esquemaEstado.safeParse(Object.fromEntries(datos));
   if (!parseo.success) return;
 
@@ -55,7 +33,7 @@ export async function cambiarEstadoPostulacion(datos: FormData) {
 }
 
 export async function cambiarEstadoMensaje(datos: FormData) {
-  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  const usuario = await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
   const parseo = esquemaEstado.safeParse(Object.fromEntries(datos));
   if (!parseo.success) return;
 

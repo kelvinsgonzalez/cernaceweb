@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 const COLUMNAS = ["Programa", "Descripción", "Beneficiarios", "Estado"];
 
 export default async function ProgramasPage() {
-  await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  await requirePermiso(PERMISOS.PROGRAMAS_LEER);
 
   const programas = await prisma.programa.findMany({
     orderBy: { nombre: "asc" },

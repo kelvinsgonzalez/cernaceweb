@@ -32,7 +32,7 @@ export default async function SinAccesoPage() {
           >
             <Lock className="size-6" />
           </span>
-          <h1 className="mt-5 font-heading text-2xl font-bold text-ink">
+          <h1 className="mt-5 font-heading text-2xl font-semibold tracking-tight text-ink">
             No tienes acceso a esta sección
           </h1>
           <p className="medida-lectura mt-3 text-ink-soft">

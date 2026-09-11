@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { pasarela } from "@/lib/pasarela";
 import { registrarAuditoria } from "@/lib/sesion";
+import { ROLES } from "@/lib/rbac";
 import { fechaDesdeInput } from "@/lib/fechas";
 import {
   erroresDeZod,
@@ -14,7 +16,6 @@ import {
   type EstadoFormulario,
 } from "@/lib/formularios";
 
-/** Objetivo 5: inscripción de beneficiarios desde el sitio público. */
 export async function enviarInscripcionBeneficiario(
   _estado: EstadoFormulario,
   datos: FormData,
@@ -60,7 +61,11 @@ export async function enviarInscripcionBeneficiario(
   };
 }
 
-/** Objetivo 6: inscripción de padrinos desde el sitio público. */
+/**
+ * Además de registrar la postulación, crea la cuenta de acceso al portal: un
+ * `User` con rol PADRINO y su `Padrino` asociado. La asignación de un
+ * beneficiario sigue siendo manual desde el panel.
+ */
 export async function enviarInscripcionPadrino(
   _estado: EstadoFormulario,
   datos: FormData,
@@ -74,20 +79,72 @@ export async function enviarInscripcionPadrino(
   }
 
   const v = parseo.data;
-  const postulacion = await prisma.volunteerApplication.create({
-    data: {
-      nombre: v.nombre,
-      email: v.email,
-      telefono: v.telefono,
-      tipo: "PADRINO",
-      ocupacion: v.ocupacion || null,
-      aporteMensual: v.aporteMensual ? v.aporteMensual : null,
-      motivacion: v.motivacion || null,
-    },
+  // `authorize()` busca el correo en minúsculas al iniciar sesión.
+  const email = v.email.toLowerCase();
+
+  const [usuarioExistente, padrinoExistente] = await Promise.all([
+    prisma.user.findUnique({ where: { email }, select: { id: true } }),
+    prisma.padrino.findUnique({ where: { email }, select: { id: true } }),
+  ]);
+
+  if (usuarioExistente || padrinoExistente) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: {
+        email:
+          "Ya existe una cuenta con este correo. Inicia sesión o escribe otro.",
+      },
+    };
+  }
+
+  const passwordHash = await bcrypt.hash(v.password, 10);
+
+  const { usuario, postulacion } = await prisma.$transaction(async (tx) => {
+    const usuario = await tx.user.create({
+      data: {
+        nombre: v.nombre,
+        email,
+        passwordHash,
+        cargo: "Padrino",
+        roles: { create: [{ role: { connect: { clave: ROLES.PADRINO } } }] },
+      },
+    });
+
+    await tx.padrino.create({
+      data: {
+        userId: usuario.id,
+        nombre: v.nombre,
+        email,
+        telefono: v.telefono,
+        ocupacion: v.ocupacion || null,
+      },
+    });
+
+    const postulacion = await tx.volunteerApplication.create({
+      data: {
+        nombre: v.nombre,
+        email,
+        telefono: v.telefono,
+        tipo: "PADRINO",
+        ocupacion: v.ocupacion || null,
+        aporteMensual: v.aporteMensual ? v.aporteMensual : null,
+        motivacion: v.motivacion || null,
+      },
+    });
+
+    return { usuario, postulacion };
   });
 
   await registrarAuditoria({
-    actor: v.email,
+    actor: email,
+    accion: "CREAR",
+    entidad: "User",
+    entidadId: usuario.id,
+    detalle: `Cuenta de padrino creada desde el sitio público: ${v.nombre}`,
+  });
+
+  await registrarAuditoria({
+    actor: email,
     accion: "CREAR",
     entidad: "VolunteerApplication",
     entidadId: postulacion.id,
@@ -95,7 +152,7 @@ export async function enviarInscripcionPadrino(
   });
 
   return {
-    ok: "Gracias. Te contactaremos para asignarte un beneficiario y darte acceso al portal.",
+    ok: "Cuenta creada. Ya puedes iniciar sesión con tu correo y contraseña; en cuanto el equipo te asigne un beneficiario lo verás en tu portal.",
   };
 }
 
@@ -133,11 +190,7 @@ export async function enviarContacto(
   return { ok: "Mensaje enviado. Te responderemos al correo que indicaste." };
 }
 
-/**
- * Objetivo 4, primer paso: se crea la donación en estado PENDIENTE con la
- * referencia que devuelve la pasarela y se lleva al usuario a la pantalla de
- * confirmación. Aquí no se piden ni se guardan datos de tarjeta.
- */
+/** Crea la donación en PENDIENTE con la referencia de la pasarela. */
 export async function iniciarDonacion(
   _estado: EstadoFormulario,
   datos: FormData,
@@ -184,7 +237,6 @@ export async function iniciarDonacion(
   redirect(`/donar/pagar/${donacion.id}`);
 }
 
-/** Objetivo 4, segundo paso: confirmación simulada del pago. */
 export async function confirmarDonacion(datos: FormData) {
   const id = String(datos.get("id") ?? "");
   const aprobar = String(datos.get("aprobar") ?? "") === "si";

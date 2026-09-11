@@ -3,12 +3,8 @@ import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 
 /**
- * Next 16 deprecó `middleware.ts`: el archivo se llama `src/proxy.ts` y
- * exporta un default con la misma firma.
- *
- * Esto solo redirige a /login a quien no tiene sesión. Es conveniencia de
- * navegación, NO la barrera de seguridad: la autorización real vive en
- * `requirePermiso()`, en cada página y cada server action.
+ * Sustituye a `middleware.ts`, deprecado en Next 16. Solo redirige a /login a
+ * quien no tiene sesión: la autorización real vive en `requirePermiso()`.
  */
 const { auth } = NextAuth(authConfig);
 
@@ -26,5 +22,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/portal/:path*", "/inicio"],
+  matcher: ["/admin/:path*", "/portal/:path*", "/mi-expediente/:path*", "/inicio"],
 };

@@ -1,9 +1,6 @@
 /**
- * Catálogo de roles y permisos: fuente de verdad de la aplicación.
- * El seed inserta exactamente lo que hay aquí, y la matriz de
- * /admin/usuarios se lee de la base, no de este archivo.
- *
- * Al añadir un módulo nuevo, añade primero su permiso aquí.
+ * Fuente de verdad de roles y permisos: el seed inserta exactamente lo que hay
+ * aquí. La matriz de /admin/usuarios se lee de la base, no de este archivo.
  */
 
 export const PERMISOS = {
@@ -13,14 +10,25 @@ export const PERMISOS = {
   EXPEDIENTE_CLINICO_ESCRIBIR: "expediente.clinico.escribir",
   EXPEDIENTE_SOCIOECONOMICO_LEER: "expediente.socioeconomico.leer",
   EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR: "expediente.socioeconomico.escribir",
+  BENEFICIARIO_ACCESO: "beneficiario.acceso",
+  INSCRIPCIONES_LEER: "inscripciones.leer",
+  PROGRAMAS_LEER: "programas.leer",
   DOCUMENTOS_LEER: "documentos.leer",
   DOCUMENTOS_SUBIR: "documentos.subir",
   SEGUIMIENTO_LEER: "seguimiento.leer",
   SEGUIMIENTO_ESCRIBIR: "seguimiento.escribir",
+  TERAPIA_GESTIONAR: "terapia.gestionar",
+  TERAPEUTAS_GESTIONAR: "terapeutas.gestionar",
   DONACIONES_LEER: "donaciones.leer",
+  PADRINAZGOS_GESTIONAR: "padrinazgos.gestionar",
+  PADRINOS_GESTIONAR: "padrinos.gestionar",
+  GALERIA_PUBLICAR: "galeria.publicar",
+  SOLICITUDES_ATENDER: "solicitudes.atender",
+  CONTENIDO_GESTIONAR: "contenido.gestionar",
   USUARIOS_GESTIONAR: "usuarios.gestionar",
   AUDITORIA_LEER: "auditoria.leer",
   PORTAL_PADRINO: "portal.padrino",
+  PORTAL_BENEFICIARIO: "portal.beneficiario",
 } as const;
 
 export type ClavePermiso = (typeof PERMISOS)[keyof typeof PERMISOS];
@@ -70,6 +78,25 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     modulo: "Expedientes",
   },
   {
+    clave: PERMISOS.BENEFICIARIO_ACCESO,
+    nombre: "Dar acceso al expediente propio",
+    descripcion:
+      "Crear la cuenta con la que la familia consulta su propio expediente, sin poder administrar el resto de cuentas.",
+    modulo: "Expedientes",
+  },
+  {
+    clave: PERMISOS.INSCRIPCIONES_LEER,
+    nombre: "Leer inscripciones",
+    descripcion: "Consultar el ciclo de inscripciones y a quién falta inscribir.",
+    modulo: "Expedientes",
+  },
+  {
+    clave: PERMISOS.PROGRAMAS_LEER,
+    nombre: "Leer programas",
+    descripcion: "Consultar el catálogo de áreas de atención del centro.",
+    modulo: "Expedientes",
+  },
+  {
     clave: PERMISOS.DOCUMENTOS_LEER,
     nombre: "Leer documentos",
     descripcion: "Consultar los documentos adjuntos al expediente.",
@@ -94,10 +121,58 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     modulo: "Seguimiento",
   },
   {
+    clave: PERMISOS.TERAPIA_GESTIONAR,
+    nombre: "Aprobar y asignar terapia",
+    descripcion:
+      "Autorizar que un beneficiario reciba terapia, fijar su objetivo general y designar a los responsables.",
+    modulo: "Seguimiento",
+  },
+  {
+    clave: PERMISOS.TERAPEUTAS_GESTIONAR,
+    nombre: "Gestionar el equipo terapéutico",
+    descripcion:
+      "Dar de alta terapeutas, corregir sus datos, restablecer su contraseña y darlos de baja. Solo alcanza a las cuentas de terapeuta.",
+    modulo: "Seguimiento",
+  },
+  {
     clave: PERMISOS.DONACIONES_LEER,
     nombre: "Leer donaciones",
     descripcion: "Consultar donaciones, donantes y campañas.",
     modulo: "Donaciones",
+  },
+  {
+    clave: PERMISOS.PADRINAZGOS_GESTIONAR,
+    nombre: "Asignar padrinazgos",
+    descripcion:
+      "Asignar un beneficiario a un padrino y dar por terminada la asignación.",
+    modulo: "Padrinos",
+  },
+  {
+    clave: PERMISOS.PADRINOS_GESTIONAR,
+    nombre: "Gestionar padrinos",
+    descripcion:
+      "Dar de alta una ficha de padrino, corregir sus datos de contacto, darle acceso al portal y darla de baja.",
+    modulo: "Padrinos",
+  },
+  {
+    clave: PERMISOS.GALERIA_PUBLICAR,
+    nombre: "Publicar en el sitio público",
+    descripcion:
+      "Autorizar que los datos generales y la foto de un beneficiario salgan en la página pública para buscarle patrocinador.",
+    modulo: "Padrinos",
+  },
+  {
+    clave: PERMISOS.SOLICITUDES_ATENDER,
+    nombre: "Atender formularios recibidos",
+    descripcion:
+      "Revisar y cambiar el estado de las solicitudes de apoyo, las postulaciones de voluntariado y los mensajes de contacto.",
+    modulo: "Entrantes",
+  },
+  {
+    clave: PERMISOS.CONTENIDO_GESTIONAR,
+    nombre: "Gestionar contenido del sitio",
+    descripcion: "Administrar eventos, historias y entradas del blog.",
+    modulo: "Contenido",
   },
   {
     clave: PERMISOS.USUARIOS_GESTIONAR,
@@ -117,6 +192,13 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     descripcion: "Acceder al portal y ver el progreso del beneficiado.",
     modulo: "Padrinos",
   },
+  {
+    clave: PERMISOS.PORTAL_BENEFICIARIO,
+    nombre: "Expediente propio",
+    descripcion:
+      "Consultar el propio expediente: avances compartidos y documentos compartidos. Solo lectura.",
+    modulo: "Beneficiarios",
+  },
 ];
 
 export const ROLES = {
@@ -125,6 +207,7 @@ export const ROLES = {
   TRABAJO_SOCIAL: "TRABAJO_SOCIAL",
   TERAPEUTA: "TERAPEUTA",
   PADRINO: "PADRINO",
+  BENEFICIARIO: "BENEFICIARIO",
 } as const;
 
 export type ClaveRol = (typeof ROLES)[keyof typeof ROLES];
@@ -148,14 +231,30 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
   {
     clave: ROLES.DIRECCION,
     nombre: "Dirección",
-    descripcion: "Solo lectura, incluida la auditoría. Sin gestión de usuarios.",
+    descripcion:
+      "Gestiona de principio a fin lo de beneficiarios, padrinos y terapeutas. Lee el resto del panel y la auditoría. Sin administración de cuentas ni de la configuración.",
     permisos: [
       PERMISOS.EXPEDIENTE_LEER,
+      PERMISOS.EXPEDIENTE_ESCRIBIR,
       PERMISOS.EXPEDIENTE_CLINICO_LEER,
+      PERMISOS.EXPEDIENTE_CLINICO_ESCRIBIR,
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_LEER,
+      PERMISOS.EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR,
+      PERMISOS.BENEFICIARIO_ACCESO,
+      PERMISOS.INSCRIPCIONES_LEER,
+      PERMISOS.PROGRAMAS_LEER,
       PERMISOS.DOCUMENTOS_LEER,
+      PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
+      PERMISOS.SEGUIMIENTO_ESCRIBIR,
+      PERMISOS.TERAPIA_GESTIONAR,
+      PERMISOS.TERAPEUTAS_GESTIONAR,
       PERMISOS.DONACIONES_LEER,
+      PERMISOS.PADRINAZGOS_GESTIONAR,
+      PERMISOS.PADRINOS_GESTIONAR,
+      PERMISOS.GALERIA_PUBLICAR,
+      PERMISOS.SOLICITUDES_ATENDER,
+      PERMISOS.CONTENIDO_GESTIONAR,
       PERMISOS.AUDITORIA_LEER,
     ],
   },
@@ -170,22 +269,28 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
       PERMISOS.EXPEDIENTE_CLINICO_LEER,
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_LEER,
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR,
+      PERMISOS.INSCRIPCIONES_LEER,
+      PERMISOS.PROGRAMAS_LEER,
       PERMISOS.DOCUMENTOS_LEER,
       PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
+      PERMISOS.PADRINAZGOS_GESTIONAR,
+      PERMISOS.SOLICITUDES_ATENDER,
+      PERMISOS.CONTENIDO_GESTIONAR,
     ],
   },
   {
     clave: ROLES.TERAPEUTA,
     nombre: "Terapeuta",
     descripcion:
-      "Área clínica (lectura y escritura) y avances. Sin ficha socioeconómica.",
+      "Área clínica (lectura y escritura), avances y documentos de sus casos. Sin ficha socioeconómica, sin recaudación y sin contenido del sitio.",
     permisos: [
       PERMISOS.EXPEDIENTE_LEER,
       PERMISOS.EXPEDIENTE_CLINICO_LEER,
       PERMISOS.EXPEDIENTE_CLINICO_ESCRIBIR,
       PERMISOS.DOCUMENTOS_LEER,
+      PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
     ],
@@ -196,9 +301,15 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     descripcion: "Únicamente el portal del padrino.",
     permisos: [PERMISOS.PORTAL_PADRINO],
   },
+  {
+    clave: ROLES.BENEFICIARIO,
+    nombre: "Beneficiario",
+    descripcion:
+      "La familia consultando su propio expediente. Solo lectura, y solo lo compartido.",
+    permisos: [PERMISOS.PORTAL_BENEFICIARIO],
+  },
 ];
 
-/** Permisos de un rol según el catálogo (usado por el seed y por las pruebas). */
 export function permisosDeRol(clave: ClaveRol): ClavePermiso[] {
   return CATALOGO_ROLES.find((r) => r.clave === clave)?.permisos ?? [];
 }

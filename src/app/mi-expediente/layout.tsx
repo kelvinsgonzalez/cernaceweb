@@ -1,0 +1,67 @@
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
+import { requirePermiso } from "@/lib/sesion";
+import { PERMISOS } from "@/lib/rbac";
+import { modulosVisibles } from "@/lib/navegacion";
+import { Logo } from "@/components/logo";
+import { MenuFlotante } from "@/components/menu-flotante";
+import { CerrarSesion } from "@/components/cerrar-sesion";
+
+export default async function LayoutMiExpediente({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Autorización en el servidor, no solo en el proxy.
+  const usuario = await requirePermiso(PERMISOS.PORTAL_BENEFICIARIO);
+  const modulos = modulosVisibles(usuario.permisos);
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <a href="#contenido" className="visually-hidden">
+        Saltar al contenido principal
+      </a>
+
+      <MenuFlotante
+        titulo="Mi expediente"
+        subtitulo={usuario.nombre}
+        inicio="/mi-expediente"
+        modulos={modulos}
+        identidad={{ nombre: usuario.nombre, detalle: usuario.email }}
+        pie={
+          <>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-brand-primary"
+            >
+              <ExternalLink aria-hidden="true" className="size-4" />
+              Ver sitio público
+            </Link>
+            <CerrarSesion className="ml-auto" />
+          </>
+        }
+      />
+
+      <header className="sticky top-0 z-30 hidden border-b border-line bg-surface/85 backdrop-blur-md lg:block">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+          <Logo />
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-ink-soft">{usuario.nombre}</p>
+            <CerrarSesion />
+          </div>
+        </div>
+      </header>
+
+      <main id="contenido" tabIndex={-1} className="flex-1">
+        {children}
+      </main>
+
+      <footer className="superficie-oscura franja-tinta mt-12">
+        <p className="mx-auto max-w-4xl px-4 py-6 text-xs text-crema/70">
+          Expediente en CERNACE. Esta página es de consulta: los avances y los
+          documentos los publica el equipo que atiende a tu hijo o hija.
+        </p>
+      </footer>
+    </div>
+  );
+}

@@ -30,7 +30,7 @@ export default async function PagarPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="font-heading text-3xl font-bold text-ink">
+      <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
         Confirma tu donación
       </h1>
 

@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // El dev server bloquea peticiones cross-origin: sin esto, el túnel de
+  // Cloudflare no puede pedir los recursos de desarrollo (HMR incluido).
+  allowedDevOrigins: ["*.trycloudflare.com"],
 };
 
 export default nextConfig;

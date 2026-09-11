@@ -6,12 +6,9 @@ import type { SesionUsuario } from "@/auth.config";
 import type { ClavePermiso } from "@/lib/rbac";
 
 /**
- * Autorización del lado del servidor.
- *
- * Regla no negociable: `requirePermiso()` corre al inicio de cada página y de
- * cada server action. Ocultar un bloque con CSS no cuenta como control de
- * acceso; si el rol no puede leer un dato, la consulta ni siquiera se ejecuta.
- * `src/proxy.ts` solo es conveniencia de navegación.
+ * `requirePermiso()` corre al inicio de cada página y de cada server action: si
+ * el rol no puede leer un dato, la consulta ni siquiera se ejecuta. `src/proxy.ts`
+ * solo es conveniencia de navegación, no control de acceso.
  */
 
 export async function usuarioActual(): Promise<SesionUsuario | null> {
@@ -40,7 +37,6 @@ export function tieneAlguno(
   return permisos.some((p) => tienePermiso(usuario, p));
 }
 
-/** Corta la petición con redirect si falta el permiso. */
 export async function requirePermiso(
   permiso: ClavePermiso,
 ): Promise<SesionUsuario> {
@@ -53,37 +49,50 @@ export async function requireAlgunPermiso(
   permisos: ClavePermiso[],
 ): Promise<SesionUsuario> {
   const usuario = await requireSesion();
-  if (!permisos.some((p) => usuario.permisos.includes(p))) redirect("/sin-acceso");
+  if (!permisos.some((p) => usuario.permisos.includes(p)))
+    redirect("/sin-acceso");
   return usuario;
 }
 
-/** Escribe en la bitácora. Toda apertura de expediente y todo cambio pasa por aquí. */
-export async function registrarAuditoria(entrada: {
+export type EntradaAuditoria = {
   actor: string;
   accion: string;
   entidad: string;
   entidadId?: string | null;
   detalle?: string | null;
-}) {
-  let ip: string | null = null;
+};
+
+/** IP de quien pide. Fuera de una petición —una tarea, el seed— no hay ninguna. */
+export async function ipDeLaPeticion(): Promise<string | null> {
   try {
     const cabeceras = await headers();
-    ip =
+    return (
       cabeceras.get("x-forwarded-for")?.split(",")[0]?.trim() ??
       cabeceras.get("x-real-ip") ??
-      null;
+      null
+    );
   } catch {
-    ip = null;
+    return null;
   }
+}
 
-  await prisma.auditLog.create({
-    data: {
-      actor: entrada.actor,
-      accion: entrada.accion,
-      entidad: entrada.entidad,
-      entidadId: entrada.entidadId ?? null,
-      detalle: entrada.detalle ?? null,
-      ip,
-    },
-  });
+/**
+ * Fila de bitácora lista para escribir. Se expone aparte de
+ * `registrarAuditoria()` para lo que borra: ahí la bitácora es la única copia
+ * que queda, así que tiene que escribirse dentro de la misma transacción que el
+ * borrado y no después, cuando ya no habría de dónde sacar el detalle.
+ */
+export async function filaAuditoria(entrada: EntradaAuditoria) {
+  return {
+    actor: entrada.actor,
+    accion: entrada.accion,
+    entidad: entrada.entidad,
+    entidadId: entrada.entidadId ?? null,
+    detalle: entrada.detalle ?? null,
+    ip: await ipDeLaPeticion(),
+  };
+}
+
+export async function registrarAuditoria(entrada: EntradaAuditoria) {
+  await prisma.auditLog.create({ data: await filaAuditoria(entrada) });
 }

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:acceso": "tsx prisma/sincronizar-acceso.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "verificar": "tsc --noEmit && eslint . && next build"

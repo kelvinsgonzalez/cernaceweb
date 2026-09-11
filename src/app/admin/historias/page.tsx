@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Historias" };
 export const dynamic = "force-dynamic";
 
 export default async function HistoriasPage() {
-  await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  await requirePermiso(PERMISOS.CONTENIDO_GESTIONAR);
 
   const historias = await prisma.story.findMany({
     orderBy: { publicadaEn: "desc" },

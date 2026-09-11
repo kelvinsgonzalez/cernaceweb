@@ -26,6 +26,7 @@ const COLUMNAS = [
   "Tamaño",
   "Vence",
   "Estado",
+  "Compartido",
   "Subido por",
 ];
 
@@ -79,7 +80,22 @@ export default async function DocumentosPage() {
             documentos.map((documento) => (
               <Fila key={documento.id}>
                 <Celda>
-                  <span className="font-medium">{documento.nombre}</span>
+                  {documento.archivo ? (
+                    <a
+                      href={`/api/documentos/${documento.id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="font-medium text-brand-dark hover:underline"
+                    >
+                      {documento.nombre}
+                      <span className="visually-hidden">
+                        {" "}
+                        (se abre en una pestaña nueva)
+                      </span>
+                    </a>
+                  ) : (
+                    <span className="font-medium">{documento.nombre}</span>
+                  )}
                   <span className="block font-mono text-xs text-ink-soft">
                     {documento.tipoMime}
                   </span>
@@ -103,6 +119,13 @@ export default async function DocumentosPage() {
                     <Chip tono="ok">Vigente</Chip>
                   ) : (
                     <Chip tono="bad">Vencido</Chip>
+                  )}
+                </Celda>
+                <Celda>
+                  {documento.visibleParaPadrino ? (
+                    <Chip tono="ok">Compartido</Chip>
+                  ) : (
+                    <Chip tono="neutro">Interno</Chip>
                   )}
                 </Celda>
                 <Celda>{documento.subidoPor}</Celda>

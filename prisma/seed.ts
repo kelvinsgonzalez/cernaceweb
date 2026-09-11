@@ -1,23 +1,31 @@
 /**
- * ⚠️  DATOS DE DEMOSTRACIÓN — FICTICIOS
- *
- * Todo lo que inserta este archivo (personas, diagnósticos, ingresos,
- * donaciones) es inventado y sirve únicamente para poder presentar la
- * plataforma. Debe sustituirse por datos reales antes de producción, y
- * las contraseñas de demostración deben cambiarse.
+ * Datos ficticios de demostración. Personas, diagnósticos, ingresos y donaciones
+ * son inventados: sustitúyelos y cambia las contraseñas antes de producción.
  */
 
+import { cp, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { CATALOGO_PERMISOS, CATALOGO_ROLES } from "../src/lib/rbac";
+import { rutaCarpetaDocumentos } from "../src/lib/almacenamiento";
+
+/** Documentos de demostración que sí tienen archivo detrás. */
+const PDFS_DE_DEMOSTRACION: Record<string, string> = {
+  "Certificado de nacimiento": "certificado-nacimiento.pdf",
+  "DPI de la encargada": "dpi-encargada.pdf",
+  "Diagnostico neuropediatrico": "diagnostico-neuro.pdf",
+  "Constancia de estudio socioeconomico": "constancia-socioeconomica.pdf",
+  "Carta de compromiso de la familia": "carta-compromiso.pdf",
+  "Informe de avance del segundo trimestre": "informe-trimestre.pdf",
+};
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-/** Fecha de calendario: medianoche UTC, para que no se corra un día. */
+/** Fecha de calendario a medianoche UTC, para que no se corra un día. */
 const f = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
-/** Marca de tiempo con hora. */
 const t = (iso: string) => new Date(iso);
 
 async function limpiar() {
@@ -35,6 +43,11 @@ async function limpiar() {
   await prisma.campaign.deleteMany();
   await prisma.padrinazgo.deleteMany();
   await prisma.padrino.deleteMany();
+  await prisma.fotoAvance.deleteMany();
+  await prisma.asignacionTerapeuta.deleteMany();
+  await prisma.planTerapeutico.deleteMany();
+  await prisma.comentarioAvance.deleteMany();
+  await prisma.inscripcion.deleteMany();
   await prisma.cita.deleteMany();
   await prisma.seguimiento.deleteMany();
   await prisma.documento.deleteMany();
@@ -42,6 +55,7 @@ async function limpiar() {
   await prisma.fichaSocioeconomica.deleteMany();
   await prisma.expedienteClinico.deleteMany();
   await prisma.beneficiario.deleteMany();
+  await prisma.encargado.deleteMany();
   await prisma.programa.deleteMany();
   await prisma.rolePermission.deleteMany();
   await prisma.userRole.deleteMany();
@@ -115,6 +129,13 @@ async function sembrarAcceso() {
       cargo: null,
       rol: "PADRINO",
       ultimoAcceso: t("2026-08-05T20:30:00-06:00"),
+    },
+    {
+      nombre: "Rosa Coy Tzaj",
+      email: "familia@cernace.org",
+      cargo: "Familia de EXP-2024-0087",
+      rol: "BENEFICIARIO",
+      ultimoAcceso: t("2026-08-07T19:15:00-06:00"),
     },
   ];
 
@@ -196,18 +217,81 @@ type DatosBeneficiario = {
   direccion: string;
   municipio: string;
   zonaResidencia: string;
-  encargadoNombre: string;
-  encargadoParentesco: string;
-  encargadoTelefono: string;
-  encargadoEmail: string | null;
+  sector: string | null;
+  escolaridad: string;
+  telefono: string | null;
+  encargado: string;
   fechaIngreso: string;
   programa: string;
   estadoExpediente: "COMPLETO" | "EN_REVISION" | "INCOMPLETO";
   publicadoEnGaleria: boolean;
   resumenPublico: string | null;
+  fotoArchivo: string | null;
+  solicitaPatrocinio: boolean;
 };
 
-async function sembrarBeneficiarios(programas: Record<string, string>) {
+/**
+ * Las fotos de demostración están en public/beneficiarios, pero la aplicación
+ * ya no las sirve desde ahí: se copian al almacenamiento, donde la ruta con
+ * control de acceso puede decidir quién las ve. La carpeta de public/ solo
+ * queda como origen de estos datos de ejemplo.
+ */
+async function copiarFotosDeDemostracion(archivos: string[]) {
+  const raiz = path.resolve(
+    process.env.ALMACENAMIENTO_DIR ?? path.join(process.cwd(), "almacenamiento"),
+  );
+  const destino = path.join(raiz, "beneficiarios");
+  await mkdir(destino, { recursive: true });
+
+  for (const archivo of archivos) {
+    try {
+      await cp(
+        path.join(process.cwd(), "public", "beneficiarios", archivo),
+        path.join(destino, archivo),
+      );
+    } catch {
+      // Si la foto de ejemplo no está, el beneficiario se muestra con su
+      // inicial: no es motivo para abortar el sembrado.
+    }
+  }
+}
+
+/**
+ * Escribe un PDF de una página con el nombre del documento dentro. Los
+ * documentos de demostración así se pueden abrir de verdad desde el expediente
+ * y desde el portal, en vez de ser filas que apuntan a ninguna parte.
+ */
+async function escribirPdfDeDemostracion(destino: string, titulo: string) {
+  const texto = titulo.replace(/[()\\]/g, "");
+  const contenido = `BT /F1 16 Tf 60 700 Td (${texto}) Tj ET\nBT /F1 10 Tf 60 670 Td (Documento de demostracion - CERNACE) Tj ET`;
+  const objetos = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${contenido.length} >>\nstream\n${contenido}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const posiciones: number[] = [];
+  objetos.forEach((objeto, i) => {
+    posiciones.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${objeto}\nendobj\n`;
+  });
+  const inicioTabla = pdf.length;
+  pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
+  for (const posicion of posiciones) {
+    pdf += `${String(posicion).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${inicioTabla}\n%%EOF`;
+
+  await writeFile(destino, pdf, "latin1");
+}
+
+async function sembrarBeneficiarios(
+  programas: Record<string, string>,
+  encargados: Record<string, string>,
+) {
   const datos: DatosBeneficiario[] = [
     {
       codigoExpediente: "EXP-2024-0087",
@@ -222,15 +306,17 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "4a calle 5-32, colonia El Esfuerzo",
       municipio: "Chimaltenango",
       zonaResidencia: "Zona 2",
-      encargadoNombre: "Rosa Coy Tzaj",
-      encargadoParentesco: "Madre",
-      encargadoTelefono: "5512 8834",
-      encargadoEmail: "rosa.coy@example.com",
+      sector: null,
+      escolaridad: "Segundo primaria",
+      telefono: null,
+      encargado: "Rosa Coy Tzaj",
       fechaIngreso: "2024-02-05",
       programa: "Terapia física",
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
+      fotoArchivo: "diego.jpg",
+      solicitaPatrocinio: false,
     },
     {
       codigoExpediente: "EXP-2024-0091",
@@ -245,16 +331,18 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "Cantón San Antonio, lote 14",
       municipio: "Patzicía",
       zonaResidencia: "Área rural",
-      encargadoNombre: "Manuela Yax Sic",
-      encargadoParentesco: "Madre",
-      encargadoTelefono: "4478 2210",
-      encargadoEmail: null,
+      sector: "Caserío Xeatzán Bajo",
+      escolaridad: "Preprimaria",
+      telefono: null,
+      encargado: "Manuela Yax Sic",
       fechaIngreso: "2024-03-18",
       programa: "Terapia del lenguaje",
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: true,
       resumenPublico:
         "Le encanta cantar y ya forma frases de tres palabras. Con apoyo constante podrá entrar a la escuela regular.",
+      fotoArchivo: "sofia.jpg",
+      solicitaPatrocinio: true,
     },
     {
       codigoExpediente: "EXP-2024-0104",
@@ -269,16 +357,18 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "2a avenida 8-14, barrio San Sebastián",
       municipio: "Chimaltenango",
       zonaResidencia: "Zona 1",
-      encargadoNombre: "Otilia Pérez Simón",
-      encargadoParentesco: "Abuela",
-      encargadoTelefono: "3321 7788",
-      encargadoEmail: "otilia.perez@example.com",
+      sector: null,
+      escolaridad: "Primero primaria",
+      telefono: null,
+      encargado: "Otilia Pérez Simón",
       fechaIngreso: "2024-05-06",
       programa: "Educación especial",
       estadoExpediente: "EN_REVISION",
       publicadoEnGaleria: true,
       resumenPublico:
         "Aprende a leer con material adaptado y es el más puntual del aula. Busca un padrino que acompañe su año escolar.",
+      fotoArchivo: "kevin.jpg",
+      solicitaPatrocinio: true,
     },
     {
       codigoExpediente: "EXP-2025-0112",
@@ -293,16 +383,18 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "Aldea Xenimaquín, casa 7",
       municipio: "San Juan Comalapa",
       zonaResidencia: "Área rural",
-      encargadoNombre: "Julián Tuy Sotz",
-      encargadoParentesco: "Padre",
-      encargadoTelefono: "5590 4412",
-      encargadoEmail: null,
+      sector: "Aldea Panabajal",
+      escolaridad: "No escolarizada",
+      telefono: null,
+      encargado: "Julián Tuy Sotz",
       fechaIngreso: "2025-01-20",
       programa: "Estimulación temprana",
       estadoExpediente: "INCOMPLETO",
       publicadoEnGaleria: true,
       resumenPublico:
         "Empezó hace poco y ya sostiene la cabeza sin apoyo. Su familia recorre una hora para cada sesión.",
+      fotoArchivo: "rhealyn.jpg",
+      solicitaPatrocinio: true,
     },
     {
       codigoExpediente: "EXP-2025-0118",
@@ -317,15 +409,17 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "5a calle 2-45, zona 3",
       municipio: "Tecpán Guatemala",
       zonaResidencia: "Zona 3",
-      encargadoNombre: "Silvia Roquel Ajú",
-      encargadoParentesco: "Madre",
-      encargadoTelefono: "4102 6653",
-      encargadoEmail: "silvia.roquel@example.com",
+      sector: null,
+      escolaridad: "Tercero primaria",
+      telefono: "4102 6653",
+      encargado: "Silvia Roquel Ajú",
       fechaIngreso: "2025-02-11",
       programa: "Terapia ocupacional",
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
+      fotoArchivo: "josue-ricardo.jpg",
+      solicitaPatrocinio: false,
     },
     {
       codigoExpediente: "EXP-2025-0123",
@@ -340,15 +434,17 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "Colonia Los Encinos, casa 22",
       municipio: "Zaragoza",
       zonaResidencia: "Zona 1",
-      encargadoNombre: "Delia Bal Morales",
-      encargadoParentesco: "Madre",
-      encargadoTelefono: "5544 9081",
-      encargadoEmail: "delia.bal@example.com",
+      sector: null,
+      escolaridad: "Segundo primaria",
+      telefono: null,
+      encargado: "Delia Bal Morales",
       fechaIngreso: "2025-03-03",
       programa: "Apoyo psicológico familiar",
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
+      fotoArchivo: null,
+      solicitaPatrocinio: false,
     },
     {
       codigoExpediente: "EXP-2025-0130",
@@ -363,15 +459,20 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "7a avenida 1-19, zona 4",
       municipio: "Chimaltenango",
       zonaResidencia: "Zona 4",
-      encargadoNombre: "Hugo Simón Cutzal",
-      encargadoParentesco: "Padre",
-      encargadoTelefono: "3398 1120",
-      encargadoEmail: null,
+      sector: null,
+      escolaridad: "Cuarto primaria",
+      telefono: null,
+      encargado: "Hugo Simón Cutzal",
       fechaIngreso: "2025-04-22",
       programa: "Terapia física",
       estadoExpediente: "INCOMPLETO",
+      // Pide patrocinador pero la administración aún no lo ha autorizado: así
+      // el panel tiene el caso «lo pidió y falta publicarlo».
       publicadoEnGaleria: false,
-      resumenPublico: null,
+      resumenPublico:
+        "Entrena fuerza en las piernas dos veces por semana y ya sube solo los tres escalones de su casa.",
+      fotoArchivo: "lorenzo.jpg",
+      solicitaPatrocinio: true,
     },
     {
       codigoExpediente: "EXP-2025-0136",
@@ -386,17 +487,23 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
       direccion: "Cantón Norte, calle principal",
       municipio: "Patzún",
       zonaResidencia: "Área rural",
-      encargadoNombre: "Irma Set Quiñónez",
-      encargadoParentesco: "Madre",
-      encargadoTelefono: "4820 3376",
-      encargadoEmail: null,
+      sector: "Aldea Chipiacul",
+      escolaridad: "No escolarizada",
+      telefono: null,
+      encargado: "Irma Set Quiñónez",
       fechaIngreso: "2025-06-09",
       programa: "Estimulación temprana",
       estadoExpediente: "EN_REVISION",
       publicadoEnGaleria: false,
       resumenPublico: null,
+      fotoArchivo: null,
+      solicitaPatrocinio: false,
     },
   ];
+
+  await copiarFotosDeDemostracion(
+    datos.map((b) => b.fotoArchivo).filter((a): a is string => Boolean(a)),
+  );
 
   const ids: Record<string, string> = {};
   for (const b of datos) {
@@ -415,16 +522,18 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
         municipio: b.municipio,
         departamento: "Chimaltenango",
         zonaResidencia: b.zonaResidencia,
-        encargadoNombre: b.encargadoNombre,
-        encargadoParentesco: b.encargadoParentesco,
-        encargadoTelefono: b.encargadoTelefono,
-        encargadoEmail: b.encargadoEmail,
+        sector: b.sector,
+        escolaridad: b.escolaridad,
+        telefono: b.telefono,
+        encargadoId: encargados[b.encargado],
         fechaIngreso: f(b.fechaIngreso),
         programaId: programas[b.programa],
         estado: "ACTIVO",
         estadoExpediente: b.estadoExpediente,
         publicadoEnGaleria: b.publicadoEnGaleria,
         resumenPublico: b.resumenPublico,
+        fotoArchivo: b.fotoArchivo,
+        solicitaPatrocinio: b.solicitaPatrocinio,
       },
     });
     ids[b.codigoExpediente] = creado.id;
@@ -432,7 +541,368 @@ async function sembrarBeneficiarios(programas: Record<string, string>) {
   return ids;
 }
 
-/** El expediente que se enseña en la defensa: completo y con todo el detalle. */
+/**
+ * Los encargados se siembran aparte porque la tabla existe justamente para no
+ * repetirlos: un mismo adulto puede tener a varios hermanos inscritos.
+ */
+async function sembrarEncargados() {
+  const datos = [
+    {
+      nombre: "Rosa Coy Tzaj",
+      parentesco: "Madre",
+      sexo: "FEMENINO" as const,
+      edad: 34,
+      noIdentificacion: "2587 41236 0401",
+      estadoCivil: "Casada",
+      situacionLaboral: "DESEMPLEADO" as const,
+      escolaridad: "Primaria completa",
+      oficio: "Ama de casa",
+      integrantesFamilia: 5,
+      direccion: "4a calle 5-32, colonia El Esfuerzo, Chimaltenango",
+      telefono: "5512 8834",
+      email: "rosa.coy@example.com",
+    },
+    {
+      nombre: "Manuela Yax Sic",
+      parentesco: "Madre",
+      sexo: "FEMENINO" as const,
+      edad: 29,
+      noIdentificacion: "2996 31457 0402",
+      estadoCivil: "Unida",
+      situacionLaboral: "DESEMPLEADO" as const,
+      escolaridad: "Tercero primaria",
+      oficio: "Ama de casa",
+      integrantesFamilia: 6,
+      direccion: "Caserío Xeatzán Bajo, Patzicía",
+      telefono: "4478 2210",
+      email: null,
+    },
+    {
+      nombre: "Otilia Pérez Simón",
+      parentesco: "Abuela",
+      sexo: "FEMENINO" as const,
+      edad: 61,
+      noIdentificacion: "1745 82369 0401",
+      estadoCivil: "Viuda",
+      situacionLaboral: "DESEMPLEADO" as const,
+      escolaridad: "Sin escolaridad",
+      oficio: "Ama de casa",
+      integrantesFamilia: 3,
+      direccion: "2a avenida 1-14, zona 1, Chimaltenango",
+      telefono: "3321 7788",
+      email: "otilia.perez@example.com",
+    },
+    {
+      nombre: "Julián Tuy Sotz",
+      parentesco: "Padre",
+      sexo: "MASCULINO" as const,
+      edad: 37,
+      noIdentificacion: "2411 78563 0403",
+      estadoCivil: "Casado",
+      situacionLaboral: "EMPLEADO" as const,
+      escolaridad: "Primaria completa",
+      oficio: "Agricultor",
+      integrantesFamilia: 7,
+      direccion: "Aldea Panabajal, San Juan Comalapa",
+      telefono: "5590 4412",
+      email: null,
+    },
+    {
+      nombre: "Silvia Roquel Ajú",
+      parentesco: "Madre",
+      sexo: "FEMENINO" as const,
+      edad: 41,
+      noIdentificacion: "2033 69147 0404",
+      estadoCivil: "Casada",
+      situacionLaboral: "EMPLEADO" as const,
+      escolaridad: "Básicos",
+      oficio: "Comerciante",
+      integrantesFamilia: 4,
+      direccion: "5a calle 3-08, zona 3, Tecpán Guatemala",
+      telefono: "4102 6653",
+      email: "silvia.roquel@example.com",
+    },
+    {
+      nombre: "Delia Bal Morales",
+      parentesco: "Madre",
+      sexo: "FEMENINO" as const,
+      edad: 33,
+      noIdentificacion: "2764 13589 0405",
+      estadoCivil: "Soltera",
+      situacionLaboral: "DESEMPLEADO" as const,
+      escolaridad: "Segundo primaria",
+      oficio: "Ama de casa",
+      integrantesFamilia: 4,
+      direccion: "1a avenida 4-27, zona 1, Zaragoza",
+      telefono: "5544 9081",
+      email: "delia.bal@example.com",
+    },
+    {
+      nombre: "Hugo Simón Cutzal",
+      parentesco: "Padre",
+      sexo: "MASCULINO" as const,
+      edad: 45,
+      noIdentificacion: "1988 54237 0401",
+      estadoCivil: "Casado",
+      situacionLaboral: "EMPLEADO" as const,
+      escolaridad: "Diversificado",
+      oficio: "Albañil",
+      integrantesFamilia: 5,
+      direccion: "7a calle 9-40, zona 4, Chimaltenango",
+      telefono: "3398 1120",
+      email: null,
+    },
+    {
+      nombre: "Irma Set Quiñónez",
+      parentesco: "Madre",
+      sexo: "FEMENINO" as const,
+      edad: 27,
+      noIdentificacion: "3120 45876 0406",
+      estadoCivil: "Unida",
+      situacionLaboral: "DESEMPLEADO" as const,
+      escolaridad: "Primaria incompleta",
+      oficio: "Ama de casa",
+      integrantesFamilia: 6,
+      direccion: "Aldea Chipiacul, Patzún",
+      telefono: "4820 3376",
+      email: null,
+    },
+  ];
+
+  const ids: Record<string, string> = {};
+  for (const e of datos) {
+    const creado = await prisma.encargado.create({ data: e });
+    ids[e.nombre] = creado.id;
+  }
+  return ids;
+}
+
+/**
+ * Inscripciones del ciclo. Dos beneficiarios se quedan sin la de 2026 a
+ * propósito, para que el panel tenga pendientes que mostrar.
+ */
+async function sembrarInscripciones(ids: Record<string, string>) {
+  const RESPONSABLE = "Marta Chalí";
+  const VO_BO = "Rodolfo Xitumul";
+
+  const datos = [
+    {
+      codigo: "EXP-2024-0087",
+      ciclo: 2026,
+      fechaInscripcion: "2026-01-14",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2024-02-05",
+      referidoPor: "Hospital Nacional de Chimaltenango",
+      areaServicio: "Terapia física",
+      impresionClinica:
+        "Parálisis cerebral infantil, forma espástica diparética. Marcha asistida con andador.",
+      otrasEnfermedades: "Reflujo gastroesofágico controlado.",
+    },
+    {
+      codigo: "EXP-2024-0087",
+      ciclo: 2025,
+      fechaInscripcion: "2025-01-16",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2024-02-05",
+      referidoPor: "Hospital Nacional de Chimaltenango",
+      areaServicio: "Terapia física",
+      impresionClinica:
+        "Parálisis cerebral infantil. Requiere andador para todo desplazamiento.",
+      otrasEnfermedades: null,
+    },
+    {
+      codigo: "EXP-2024-0091",
+      ciclo: 2026,
+      fechaInscripcion: "2026-01-20",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2024-03-18",
+      referidoPor: "Centro de Salud de Patzicía",
+      areaServicio: "Terapia del lenguaje",
+      impresionClinica: "Trastorno del lenguaje expresivo.",
+      otrasEnfermedades: null,
+    },
+    {
+      codigo: "EXP-2024-0104",
+      ciclo: 2026,
+      fechaInscripcion: "2026-01-22",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2024-05-06",
+      referidoPor: "Escuela Oficial Urbana Mixta",
+      areaServicio: "Educación especial",
+      impresionClinica: "Discapacidad intelectual leve.",
+      otrasEnfermedades: null,
+    },
+    {
+      codigo: "EXP-2024-0104",
+      ciclo: 2025,
+      fechaInscripcion: "2025-01-23",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2024-05-06",
+      referidoPor: "Escuela Oficial Urbana Mixta",
+      areaServicio: "Educación especial",
+      impresionClinica: "Discapacidad intelectual leve.",
+      otrasEnfermedades: null,
+    },
+    {
+      codigo: "EXP-2025-0112",
+      ciclo: 2026,
+      fechaInscripcion: "2026-02-03",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2025-01-20",
+      referidoPor: "Comadrona de la comunidad",
+      areaServicio: "Estimulación temprana",
+      impresionClinica: "Retraso psicomotor en seguimiento.",
+      otrasEnfermedades: "Cuadros respiratorios frecuentes en invierno.",
+    },
+    {
+      codigo: "EXP-2025-0118",
+      ciclo: 2026,
+      fechaInscripcion: "2026-02-05",
+      tipoIngreso: "REINGRESO" as const,
+      fechaPrimerIngreso: "2025-02-11",
+      referidoPor: "Centro de Salud de Tecpán",
+      areaServicio: "Terapia ocupacional",
+      impresionClinica: "Trastorno del espectro autista.",
+      otrasEnfermedades: null,
+    },
+    {
+      codigo: "EXP-2025-0136",
+      ciclo: 2026,
+      fechaInscripcion: "2026-02-11",
+      tipoIngreso: "PRIMER_INGRESO" as const,
+      fechaPrimerIngreso: "2025-06-09",
+      referidoPor: "Puesto de Salud de Patzún",
+      areaServicio: "Estimulación temprana",
+      impresionClinica: "Evaluación inicial pendiente de completar.",
+      otrasEnfermedades: null,
+    },
+  ];
+
+  for (const d of datos) {
+    await prisma.inscripcion.create({
+      data: {
+        beneficiarioId: ids[d.codigo],
+        ciclo: d.ciclo,
+        fechaInscripcion: f(d.fechaInscripcion),
+        tipoIngreso: d.tipoIngreso,
+        fechaPrimerIngreso: f(d.fechaPrimerIngreso),
+        referidoPor: d.referidoPor,
+        areaServicio: d.areaServicio,
+        impresionClinica: d.impresionClinica,
+        otrasEnfermedades: d.otrasEnfermedades,
+        responsableInscripcion: RESPONSABLE,
+        voBo: VO_BO,
+      },
+    });
+  }
+}
+
+
+/**
+ * Aprobación de terapia y equipo responsable. Se aprueba a los beneficiarios
+ * inscritos en el ciclo vigente; dos quedan sin aprobar a propósito, para que
+ * el panel muestre pendientes.
+ */
+async function sembrarTerapia(
+  ids: Record<string, string>,
+  usuarios: Record<string, string>,
+) {
+  const APROBADOR = "Ana Lucía Set";
+
+  const planes = [
+    {
+      codigo: "EXP-2024-0087",
+      objetivoGeneral:
+        "Lograr marcha independiente en superficie plana sin andador al cierre del ciclo, manteniendo el control de tronco alcanzado y ampliando el rango de la cadera.",
+      anotaciones:
+        "No forzar la bipedestación más de 20 minutos seguidos. La madre asiste a la última sesión de cada mes para repasar los ejercicios de casa.",
+      fechaAprobacion: "2026-01-16",
+      responsables: ["TERAPEUTA", "TRABAJO_SOCIAL"],
+    },
+    {
+      codigo: "EXP-2024-0091",
+      objetivoGeneral:
+        "Ampliar el lenguaje expresivo a frases de cinco palabras y afianzar el uso de pronombres en la conversación cotidiana.",
+      anotaciones:
+        "Trabaja mejor a primera hora. Evitar sesiones después del recreo.",
+      fechaAprobacion: "2026-01-21",
+      responsables: ["TERAPEUTA"],
+    },
+    {
+      codigo: "EXP-2024-0104",
+      objetivoGeneral:
+        "Consolidar la lectura de palabras de dos sílabas y la escritura del nombre completo con material adaptado.",
+      anotaciones:
+        "Vive con su abuela, que no terminó la primaria: las indicaciones de casa van ilustradas.",
+      fechaAprobacion: "2026-01-23",
+      responsables: ["TERAPEUTA", "TRABAJO_SOCIAL"],
+    },
+    {
+      codigo: "EXP-2025-0112",
+      objetivoGeneral:
+        "Alcanzar sedestación estable sin apoyo y sostener objetos con las dos manos en la línea media.",
+      anotaciones:
+        "La familia recorre una hora hasta el centro. Agrupar terapia y control en el mismo día.",
+      fechaAprobacion: "2026-02-04",
+      responsables: ["TERAPEUTA"],
+    },
+    {
+      codigo: "EXP-2025-0118",
+      objetivoGeneral:
+        "Tolerar la rutina del aula durante una jornada completa y usar el tablero de comunicación para pedir turnos.",
+      anotaciones: "Sensible al ruido: la sesión se hace en la sala pequeña.",
+      fechaAprobacion: "2026-02-06",
+      responsables: ["TERAPEUTA"],
+    },
+    // EXP-2025-0136 queda aprobado pero sin equipo, y EXP-2025-0123 y
+    // EXP-2025-0130 sin aprobar: los tres casos que el panel debe distinguir.
+    {
+      codigo: "EXP-2025-0136",
+      objetivoGeneral:
+        "Completar la evaluación inicial de estimulación temprana y fijar las metas del primer trimestre.",
+      anotaciones: null,
+      fechaAprobacion: "2026-02-12",
+      responsables: [] as string[],
+    },
+  ];
+
+  for (const plan of planes) {
+    await prisma.planTerapeutico.create({
+      data: {
+        beneficiarioId: ids[plan.codigo],
+        objetivoGeneral: plan.objetivoGeneral,
+        anotaciones: plan.anotaciones,
+        activo: true,
+        aprobadoPor: APROBADOR,
+        aprobadoPorId: usuarios["ADMIN"],
+        fechaAprobacion: f(plan.fechaAprobacion),
+      },
+    });
+
+    for (const rol of plan.responsables) {
+      await prisma.asignacionTerapeuta.create({
+        data: {
+          beneficiarioId: ids[plan.codigo],
+          terapeutaId: usuarios[rol],
+          desde: f(plan.fechaAprobacion),
+          asignadoPor: APROBADOR,
+        },
+      });
+    }
+  }
+
+  // Los avances sembrados llevan el nombre de quien los firmó; los que
+  // corresponden a una cuenta real se enlazan con ella.
+  const cuentas = await prisma.user.findMany({ select: { id: true, nombre: true } });
+  for (const cuenta of cuentas) {
+    await prisma.seguimiento.updateMany({
+      where: { registradoPor: cuenta.nombre, registradoPorId: null },
+      data: { registradoPorId: cuenta.id },
+    });
+  }
+}
+
+/** Expediente completo, con todas las secciones pobladas. */
 async function sembrarExpedientePrincipal(beneficiarioId: string) {
   await prisma.expedienteClinico.create({
     data: {
@@ -516,6 +986,12 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
     },
   });
 
+  const carpetaDocs = rutaCarpetaDocumentos();
+  await mkdir(carpetaDocs, { recursive: true });
+  for (const [titulo, archivo] of Object.entries(PDFS_DE_DEMOSTRACION)) {
+    await escribirPdfDeDemostracion(path.join(carpetaDocs, archivo), titulo);
+  }
+
   await prisma.documento.createMany({
     data: [
       {
@@ -524,7 +1000,8 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         categoria: "Identificación",
         tipoMime: "application/pdf",
         tamanoBytes: 184320,
-        url: "/documentos/demo/certificado-nacimiento.pdf",
+        archivo: "certificado-nacimiento.pdf",
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: null,
         subidoPor: "Marta Chalí",
@@ -533,9 +1010,10 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         beneficiarioId,
         nombre: "DPI de la encargada",
         categoria: "Identificación",
-        tipoMime: "image/jpeg",
+        tipoMime: "application/pdf",
         tamanoBytes: 512000,
-        url: "/documentos/demo/dpi-encargada.jpg",
+        archivo: "dpi-encargada.pdf",
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: f("2029-05-30"),
         subidoPor: "Marta Chalí",
@@ -546,7 +1024,10 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         categoria: "Clínico",
         tipoMime: "application/pdf",
         tamanoBytes: 302080,
-        url: "/documentos/demo/diagnostico-neuro.pdf",
+        archivo: "diagnostico-neuro.pdf",
+        // Interno: compartir alcanza al padrino además de a la familia, y a él
+        // el diagnóstico no se le enseña.
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: null,
         subidoPor: "Julio Mux",
@@ -557,7 +1038,8 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         categoria: "Socioeconómico",
         tipoMime: "application/pdf",
         tamanoBytes: 143360,
-        url: "/documentos/demo/constancia-socioeconomica.pdf",
+        archivo: "constancia-socioeconomica.pdf",
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: f("2026-02-27"),
         subidoPor: "Marta Chalí",
@@ -568,10 +1050,23 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         categoria: "Administrativo",
         tipoMime: "application/pdf",
         tamanoBytes: 98304,
-        url: "/documentos/demo/carta-compromiso.pdf",
+        archivo: "carta-compromiso.pdf",
+        visibleParaPadrino: true,
         vigente: true,
         fechaVencimiento: null,
         subidoPor: "Ana Lucía Set",
+      },
+      {
+        beneficiarioId,
+        nombre: "Informe de avance del segundo trimestre",
+        categoria: "Informes de terapia",
+        tipoMime: "application/pdf",
+        tamanoBytes: 221184,
+        archivo: "informe-trimestre.pdf",
+        visibleParaPadrino: true,
+        vigente: true,
+        fechaVencimiento: null,
+        subidoPor: "Julio Mux",
       },
       {
         beneficiarioId,
@@ -579,7 +1074,8 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         categoria: "Administrativo",
         tipoMime: "image/png",
         tamanoBytes: 245760,
-        url: "/documentos/demo/foto-carne.png",
+        archivo: null,
+        visibleParaPadrino: false,
         vigente: false,
         fechaVencimiento: f("2025-12-31"),
         subidoPor: "Ana Lucía Set",
@@ -587,8 +1083,7 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
     ],
   });
 
-  // Tres avances: dos visibles para el padrino y uno interno, para poder
-  // demostrar el filtrado del objetivo 3 en la defensa.
+  // Dos avances visibles para el padrino y uno interno, para ejercitar el filtro.
   await prisma.seguimiento.createMany({
     data: [
       {
@@ -634,7 +1129,55 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
   });
 }
 
-/** Los otros expedientes, con distinto grado de completitud. */
+/** Conversación del equipo sobre los avances del expediente principal. */
+async function sembrarComentarios(usuarios: Record<string, string>) {
+  const avances = await prisma.seguimiento.findMany({
+    where: { titulo: { not: "" } },
+    select: { id: true, titulo: true, registradoPor: true },
+    orderBy: { fecha: "asc" },
+  });
+
+  const conversacion: { contiene: string; autor: string; rol: string; texto: string }[] = [
+    {
+      contiene: "40 metros",
+      autor: "Marta Chalí",
+      rol: "TRABAJO_SOCIAL",
+      texto:
+        "Hablé con la mamá y confirma que en casa lo intenta sin el andador dos veces al día. Podemos apoyarnos en eso para la siguiente meta.",
+    },
+    {
+      contiene: "40 metros",
+      autor: "Ana Lucía Set",
+      rol: "ADMIN",
+      texto:
+        "Buen avance. Adjunté al expediente la carta de compromiso firmada por la familia, por si hace falta para el informe del trimestre.",
+    },
+    {
+      contiene: "situación del hogar",
+      autor: "Julio Mux",
+      rol: "TERAPEUTA",
+      texto:
+        "Ojo con el transporte los jueves: la familia me comentó que ese día se les complica llegar temprano a la sesión.",
+    },
+  ];
+
+  for (const entrada of conversacion) {
+    const avance = avances.find((a) =>
+      a.titulo.toLowerCase().includes(entrada.contiene),
+    );
+    if (!avance) continue;
+    await prisma.comentarioAvance.create({
+      data: {
+        seguimientoId: avance.id,
+        texto: entrada.texto,
+        autor: entrada.autor,
+        autorId: usuarios[entrada.rol],
+      },
+    });
+  }
+}
+
+/** Expedientes con distinto grado de completitud. */
 async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
   await prisma.expedienteClinico.createMany({
     data: [
@@ -819,6 +1362,12 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
     ],
   });
 
+  const carpetaDocs = rutaCarpetaDocumentos();
+  await mkdir(carpetaDocs, { recursive: true });
+  for (const [titulo, archivo] of Object.entries(PDFS_DE_DEMOSTRACION)) {
+    await escribirPdfDeDemostracion(path.join(carpetaDocs, archivo), titulo);
+  }
+
   await prisma.documento.createMany({
     data: [
       {
@@ -827,7 +1376,8 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         categoria: "Identificación",
         tipoMime: "application/pdf",
         tamanoBytes: 176128,
-        url: "/documentos/demo/certificado-0091.pdf",
+        archivo: null,
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: null,
         subidoPor: "Marta Chalí",
@@ -838,7 +1388,8 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         categoria: "Identificación",
         tipoMime: "image/jpeg",
         tamanoBytes: 460800,
-        url: "/documentos/demo/dpi-0104.jpg",
+        archivo: null,
+        visibleParaPadrino: false,
         vigente: true,
         fechaVencimiento: f("2027-08-14"),
         subidoPor: "Marta Chalí",
@@ -1036,6 +1587,7 @@ async function sembrarContenido() {
           "Cuando Diego llegó a CERNACE en febrero de 2024 necesitaba andador para cualquier desplazamiento. Su plan combinó terapia física, hidroterapia y trabajo en casa con su mamá. En abril de 2026 cruzó el patio con una sola mano de apoyo: cuarenta metros que en la ficha son un número y en su casa fueron una fiesta.",
         protagonista: "Diego",
         programa: "Terapia física",
+        imagenUrl: "/historias/diego.jpg",
         estado: "PUBLICADO",
         publicadaEn: t("2026-05-02T10:00:00-06:00"),
       },
@@ -1048,6 +1600,7 @@ async function sembrarContenido() {
           "Sofía llegó sin usar palabras completas. Hoy forma frases de tres y cuatro palabras, y es la primera en levantar la mano en la ronda de saludos. Su madre recorre cuarenta minutos desde Patzicía cada semana.",
         protagonista: "Sofía",
         programa: "Terapia del lenguaje",
+        imagenUrl: "/historias/sofia.jpg",
         estado: "PUBLICADO",
         publicadaEn: t("2026-06-18T10:00:00-06:00"),
       },
@@ -1060,6 +1613,7 @@ async function sembrarContenido() {
           "Doña Otilia cría sola a Kevin. No terminó la primaria, así que el aula de educación especial le preparó un cuaderno con instrucciones ilustradas. Kevin ya lee veinte palabras y no ha faltado ni un día.",
         protagonista: "Kevin",
         programa: "Educación especial",
+        imagenUrl: "/historias/kevin.jpg",
         estado: "PUBLICADO",
         publicadaEn: t("2026-07-09T10:00:00-06:00"),
       },
@@ -1248,6 +1802,18 @@ async function sembrarConfiguracion() {
         grupo: "general",
       },
       {
+        clave: "inscripciones.cicloVigente",
+        valor: "2026",
+        descripcion: "Ciclo que se propone al abrir una ficha de inscripción.",
+        grupo: "inscripciones",
+      },
+      {
+        clave: "inscripciones.voBo",
+        valor: "Rodolfo Xitumul",
+        descripcion: "Quien da el visto bueno de las inscripciones.",
+        grupo: "inscripciones",
+      },
+      {
         clave: "contacto.telefono",
         valor: "7839 2214",
         descripcion: "Teléfono que aparece en la barra superior del sitio.",
@@ -1369,17 +1935,35 @@ async function main() {
 
   await limpiar();
   const usuarios = await sembrarAcceso();
-  console.log("· Roles, permisos y 5 cuentas de demostración");
+  console.log("· Roles, permisos y 6 cuentas de demostración");
 
   const programas = await sembrarProgramas();
   console.log("· 6 programas");
 
-  const beneficiarios = await sembrarBeneficiarios(programas);
+  const encargados = await sembrarEncargados();
+  console.log("· 8 encargados");
+
+  const beneficiarios = await sembrarBeneficiarios(programas, encargados);
   console.log("· 8 beneficiarios");
+
+  // La cuenta de la familia se ata al expediente aquí, ya creados los dos.
+  await prisma.beneficiario.update({
+    where: { id: beneficiarios["EXP-2024-0087"] },
+    data: { userId: usuarios["BENEFICIARIO"] },
+  });
+
+  await sembrarInscripciones(beneficiarios);
+  console.log("· 8 inscripciones: 6 del ciclo 2026 y 2 del 2025");
 
   await sembrarExpedientePrincipal(beneficiarios["EXP-2024-0087"]);
   await sembrarExpedientesSecundarios(beneficiarios);
   console.log("· Expedientes clínicos, fichas, documentos, avances y citas");
+
+  await sembrarTerapia(beneficiarios, usuarios);
+  console.log("· 6 planes de terapia aprobados y sus equipos responsables");
+
+  await sembrarComentarios(usuarios);
+  console.log("· Comentarios del equipo sobre los avances");
 
   const padrinos = await sembrarPadrinos(beneficiarios, usuarios);
   console.log("· 5 padrinos (3 beneficiarios quedan sin padrino)");
@@ -1403,6 +1987,7 @@ async function main() {
   console.log("  trabajosocial@cernace.org TRABAJO_SOCIAL");
   console.log("  terapeuta@cernace.org     TERAPEUTA");
   console.log("  padrino@cernace.org       PADRINO");
+  console.log("  familia@cernace.org       BENEFICIARIO (expediente EXP-2024-0087)");
 }
 
 main()

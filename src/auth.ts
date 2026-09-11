@@ -27,6 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: email.toLowerCase() },
           include: {
             padrino: { select: { id: true } },
+            beneficiario: { select: { id: true } },
             roles: {
               include: {
                 role: { include: { permisos: { include: { permission: true } } } },
@@ -71,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           roles,
           permisos,
           padrinoId: usuario.padrino?.id ?? null,
+          beneficiarioId: usuario.beneficiario?.id ?? null,
         };
 
         // next-auth espera un `User`; el resto de campos viaja al callback jwt.

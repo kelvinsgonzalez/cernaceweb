@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 const COLUMNAS = ["Evento", "Lugar", "Inicia", "Termina", "Cupo", "Estado"];
 
 export default async function EventosPage() {
-  await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
+  await requirePermiso(PERMISOS.CONTENIDO_GESTIONAR);
 
   const eventos = await prisma.event.findMany({ orderBy: { inicia: "desc" } });
 

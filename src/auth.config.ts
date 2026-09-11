@@ -1,11 +1,11 @@
 import type { NextAuthConfig } from "next-auth";
 
 /**
- * Configuración compartida entre el runtime de Node (src/auth.ts) y el proxy.
+ * Configuración compartida entre src/auth.ts y el proxy.
  *
- * Nota de entorno: la augmentación de tipos de `next-auth/jwt` no se aplica en
- * este proyecto, así que en los callbacks hay que estrechar `user` y `token`
- * con un `as` explícito o TypeScript los tipa como `{}` y no compila.
+ * La augmentación de tipos de `next-auth/jwt` no se aplica en este proyecto, así
+ * que los callbacks estrechan `user` y `token` con un `as` explícito; sin él
+ * TypeScript los tipa como `{}`.
  */
 
 export type SesionUsuario = {
@@ -15,6 +15,7 @@ export type SesionUsuario = {
   roles: string[];
   permisos: string[];
   padrinoId: string | null;
+  beneficiarioId: string | null;
 };
 
 export const authConfig = {
@@ -23,6 +24,24 @@ export const authConfig = {
     error: "/login",
   },
   session: { strategy: "jwt" },
+  /**
+   * Las cookies llevan nombre propio en vez del `authjs.*` de serie.
+   *
+   * En localhost las cookies se comparten entre puertos: cualquier otra
+   * aplicación con Auth.js corriendo en la misma máquina deja su
+   * `authjs.session-token` y este servidor intenta descifrarla con su secreto,
+   * que no es el mismo. El resultado es un JWTSessionError en cada petición.
+   * Con un nombre propio, esa cookie ajena sencillamente se ignora.
+   *
+   * Solo se cambia el nombre: las opciones (httpOnly, sameSite, secure) las
+   * sigue calculando Auth.js según el entorno, que es quien sabe si la conexión
+   * va por HTTPS.
+   */
+  cookies: {
+    sessionToken: { name: "cernace.session-token" },
+    csrfToken: { name: "cernace.csrf-token" },
+    callbackUrl: { name: "cernace.callback-url" },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -33,6 +52,7 @@ export const authConfig = {
         t.roles = u.roles;
         t.permisos = u.permisos;
         t.padrinoId = u.padrinoId;
+        t.beneficiarioId = u.beneficiarioId;
       }
       return token;
     },
@@ -43,6 +63,7 @@ export const authConfig = {
         roles?: string[];
         permisos?: string[];
         padrinoId?: string | null;
+        beneficiarioId?: string | null;
       };
       const s = session as unknown as { user: SesionUsuario };
       if (s.user) {
@@ -51,6 +72,7 @@ export const authConfig = {
         s.user.roles = t.roles ?? [];
         s.user.permisos = t.permisos ?? [];
         s.user.padrinoId = t.padrinoId ?? null;
+        s.user.beneficiarioId = t.beneficiarioId ?? null;
       }
       return session;
     },

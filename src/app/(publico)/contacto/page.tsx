@@ -17,12 +17,13 @@ export default async function ContactoPage() {
 
   return (
     <>
-      <section className="bg-brand-sky">
-        <div className="mx-auto max-w-5xl px-4 py-12">
-          <h1 className="font-heading text-4xl font-bold text-brand-dark">
+      <section className="franja-clara border-b border-line">
+        <div className="mx-auto max-w-5xl px-4 py-12 sm:py-16">
+          <p className="rotulo aparece text-brand-primary">Escríbenos</p>
+          <h1 className="filete aparece aparece-2 mt-3 font-heading text-3xl font-semibold tracking-tight text-brand-dark sm:text-5xl">
             Contacto
           </h1>
-          <p className="medida-lectura mt-4 text-lg text-ink">
+          <p className="medida-lectura aparece aparece-3 mt-4 text-lg text-ink">
             Escríbenos para consultas sobre inscripciones, donaciones, visitas o
             alianzas. Respondemos en horario de oficina.
           </p>

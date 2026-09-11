@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/sesion";
+import { requireAlgunPermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
-import { Chip } from "@/components/ui";
+import { Chip, Kpi, Tarjeta, TarjetaCabecera } from "@/components/ui";
 import {
   Celda,
   EncabezadoPagina,
@@ -13,6 +14,8 @@ import {
 } from "@/components/admin/estructura";
 import { formatFecha, formatQuetzales } from "@/lib/fechas";
 import { aNumero } from "@/lib/utils";
+import { FormularioPadrino } from "./formulario";
+import { crearPadrino } from "./acciones";
 
 export const metadata: Metadata = { title: "Donantes y padrinos" };
 
@@ -24,14 +27,19 @@ const COLUMNAS = [
   "Apadrinados",
   "Aporte mensual",
   "Acceso al portal",
+  "Estado",
   "Desde",
 ];
 
 export default async function DonantesPage() {
-  await requirePermiso(PERMISOS.DONACIONES_LEER);
+  const usuario = await requireAlgunPermiso([
+    PERMISOS.DONACIONES_LEER,
+    PERMISOS.PADRINOS_GESTIONAR,
+  ]);
+  const gestiona = tienePermiso(usuario, PERMISOS.PADRINOS_GESTIONAR);
 
   const padrinos = await prisma.padrino.findMany({
-    orderBy: { nombre: "asc" },
+    orderBy: [{ activo: "desc" }, { nombre: "asc" }],
     include: {
       padrinazgos: {
         where: { activo: true },
@@ -42,19 +50,44 @@ export default async function DonantesPage() {
     },
   });
 
+  const activos = padrinos.filter((p) => p.activo);
+  const sinAsignar = activos.filter((p) => p.padrinazgos.length === 0);
+  const sinCuenta = activos.filter((p) => !p.userId);
+
+  const columnas = gestiona ? [...COLUMNAS, "Acción"] : COLUMNAS;
+
   return (
     <>
       <EncabezadoPagina
         titulo="Donantes y padrinos"
-        descripcion="Personas y organizaciones que sostienen los programas con un aporte periódico."
+        descripcion="Personas y organizaciones que sostienen los programas con un aporte periódico. Aquí se lleva su ficha; a quién apadrinan se decide en Asignaciones."
       />
+
+      <div className="mb-8 grid gap-5 sm:grid-cols-3">
+        <Kpi etiqueta="Padrinos activos" valor={activos.length} />
+        <Kpi etiqueta="Sin beneficiario asignado" valor={sinAsignar.length} />
+        <Kpi etiqueta="Sin acceso al portal" valor={sinCuenta.length} />
+      </div>
+
+      {gestiona ? (
+        <Tarjeta className="mb-8">
+          <TarjetaCabecera
+            titulo="Registrar un padrino"
+            descripcion="La ficha basta para poder asignarle un beneficiario. El acceso al portal se le da después, desde su ficha."
+            icono={<UserPlus className="size-5" />}
+          />
+          <div className="p-5">
+            <FormularioPadrino accion={crearPadrino} />
+          </div>
+        </Tarjeta>
+      ) : null}
 
       <Tabla
         caption="Padrinos registrados con sus beneficiarios asignados y su aporte"
-        columnas={COLUMNAS}
+        columnas={columnas}
       >
         {padrinos.length === 0 ? (
-          <FilaVacia columnas={COLUMNAS.length} mensaje="No hay padrinos registrados." />
+          <FilaVacia columnas={columnas.length} mensaje="No hay padrinos registrados." />
         ) : (
           padrinos.map((padrino) => {
             const aporte = padrino.padrinazgos.reduce(
@@ -105,9 +138,26 @@ export default async function DonantesPage() {
                     <Chip tono="warn">Sin cuenta</Chip>
                   )}
                 </Celda>
+                <Celda>
+                  {padrino.activo ? (
+                    <Chip tono="ok">Activo</Chip>
+                  ) : (
+                    <Chip tono="neutro">De baja</Chip>
+                  )}
+                </Celda>
                 <Celda className="whitespace-nowrap">
                   {formatFecha(padrino.createdAt)}
                 </Celda>
+                {gestiona ? (
+                  <Celda className="whitespace-nowrap">
+                    <Link
+                      href={`/admin/donantes/${padrino.id}`}
+                      className="font-semibold text-brand-primary hover:underline"
+                    >
+                      Abrir ficha
+                    </Link>
+                  </Celda>
+                ) : null}
               </Fila>
             );
           })

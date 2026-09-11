@@ -5,7 +5,6 @@ export function cn(...clases: ClassValue[]) {
   return twMerge(clsx(clases));
 }
 
-/** Primer nombre: lo único que la galería pública puede mostrar. */
 export function primerNombre(nombres: string): string {
   return nombres.trim().split(/\s+/)[0] ?? nombres;
 }
@@ -22,10 +21,28 @@ export function formatTamano(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Campo numérico de un formulario → entero, o null si viene vacío o no cuadra. */
+export function aEntero(valor: string | undefined | null): number | null {
+  if (!valor) return null;
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
 /** Decimal de Prisma → número, sin depender del tipo runtime. */
 export function aNumero(valor: unknown): number {
   if (valor === null || valor === undefined) return 0;
   return Number(valor.toString());
+}
+
+/**
+ * Las fotos no se sirven desde public/: pasan por una ruta que comprueba si el
+ * beneficiario sigue autorizado. Sin archivo, la tarjeta cae a la inicial.
+ */
+export function urlFotoBeneficiario(
+  id: string,
+  archivo: string | null | undefined,
+): string | null {
+  return archivo ? `/api/fotos/beneficiario/${id}` : null;
 }
 
 export function slugify(texto: string): string {
@@ -35,4 +52,13 @@ export function slugify(texto: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+/**
+ * ¿El enlace corresponde a la página actual? Coincidencia exacta o de prefijo
+ * por segmento completo: así `/admin` no se enciende estando en
+ * `/admin/beneficiarios`, y `/admin/donantes` no lo hace en `/admin/donaciones`.
+ */
+export function rutaActiva(ruta: string, href: string): boolean {
+  return ruta === href || ruta.startsWith(`${href}/`);
 }

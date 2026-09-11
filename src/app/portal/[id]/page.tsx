@@ -1,13 +1,14 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Chip, Tarjeta, Vacio } from "@/components/ui";
 import { IconoPrograma } from "@/components/icono-programa";
 import { calcularEdad, formatFecha, formatQuetzales } from "@/lib/fechas";
-import { aNumero, primerNombre } from "@/lib/utils";
+import { aNumero, formatTamano, primerNombre } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,7 @@ export default async function ProgresoPage({
   const { id } = await params;
   const usuario = await requirePermiso(PERMISOS.PORTAL_PADRINO);
 
-  // La consulta exige que el padrinazgo pertenezca a este padrino: un id
-  // ajeno en la URL no devuelve nada.
+  // El padrinazgo debe ser de este padrino: un id ajeno en la URL no devuelve nada.
   const padrinazgo = usuario.padrinoId
     ? await prisma.padrinazgo.findFirst({
         where: {
@@ -36,7 +36,6 @@ export default async function ProgresoPage({
               fechaNacimiento: true,
               fechaIngreso: true,
               programa: { select: { nombre: true, descripcion: true, icono: true } },
-              // Solo los avances marcados como visibles para el padrino.
               seguimientos: {
                 where: { visibleParaPadrino: true },
                 orderBy: { fecha: "desc" },
@@ -46,6 +45,23 @@ export default async function ProgresoPage({
                   area: true,
                   titulo: true,
                   descripcion: true,
+                  // El nombre de quien lo escribió no se trae: el padrino ve el
+                  // avance y su área, no la ficha del personal.
+                  fotos: { select: { id: true } },
+                },
+              },
+              // Solo los que el equipo marcó como compartidos y tienen archivo:
+              // el resto del expediente no se consulta siquiera.
+              documentos: {
+                where: { visibleParaPadrino: true, archivo: { not: null } },
+                orderBy: { createdAt: "desc" },
+                select: {
+                  id: true,
+                  nombre: true,
+                  categoria: true,
+                  tipoMime: true,
+                  tamanoBytes: true,
+                  createdAt: true,
                 },
               },
             },
@@ -81,12 +97,12 @@ export default async function ProgresoPage({
         <div className="flex flex-wrap items-center gap-5">
           <span
             aria-hidden="true"
-            className="flex size-16 items-center justify-center rounded-full bg-brand-yellow font-heading text-2xl font-bold text-brand-dark"
+            className="flex size-16 items-center justify-center rounded-full bg-brand-yellow font-heading text-2xl font-semibold tracking-tight text-brand-dark"
           >
             {nombre[0]}
           </span>
           <div>
-            <h1 className="font-heading text-3xl font-bold text-ink">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
               {nombre}, {calcularEdad(nino.fechaNacimiento)} años
             </h1>
             <p className="mt-1 inline-flex items-center gap-2 text-brand-primary">
@@ -123,12 +139,13 @@ export default async function ProgresoPage({
       </Tarjeta>
 
       <section aria-labelledby="avances-titulo" className="mt-8">
-        <h2 id="avances-titulo" className="font-heading text-2xl font-bold text-ink">
+        <h2 id="avances-titulo" className="font-heading text-2xl font-semibold tracking-tight text-ink">
           Avances publicados
         </h2>
         <p className="medida-lectura mt-2 text-sm text-ink-soft">
-          El personal decide qué avances se comparten contigo. Las notas
-          internas del expediente no aparecen aquí.
+          Los terapeutas que atienden a tu apadrinado publican aquí sus
+          reseñas, con fotos cuando las hay. El personal decide qué avances se
+          comparten contigo: las notas internas no aparecen.
         </p>
 
         {nino.seguimientos.length === 0 ? (
@@ -155,10 +172,78 @@ export default async function ProgresoPage({
                   <p className="medida-lectura mt-2 text-sm text-ink-soft">
                     {avance.descripcion}
                   </p>
+                  {avance.fotos.length > 0 ? (
+                    <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {avance.fotos.map((foto) => (
+                        <li key={foto.id}>
+                          {/* Sin optimizar: el optimizador pediría la imagen
+                              sin la sesión del padrino y recibiría un 404. */}
+                          <Image
+                            src={`/api/fotos/${foto.id}`}
+                            alt=""
+                            width={400}
+                            height={400}
+                            unoptimized
+                            className="aspect-square w-full rounded-[var(--radius-sm)] border border-line object-cover"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </Tarjeta>
               </li>
             ))}
           </ol>
+        )}
+      </section>
+
+      <section aria-labelledby="documentos-titulo" className="mt-10">
+        <h2
+          id="documentos-titulo"
+          className="font-heading text-2xl font-semibold tracking-tight text-ink"
+        >
+          Documentos compartidos
+        </h2>
+        <p className="medida-lectura mt-2 text-sm text-ink-soft">
+          Informes y constancias que el equipo ha decidido compartir contigo. El
+          resto del expediente es confidencial y no aparece aquí.
+        </p>
+
+        {nino.documentos.length === 0 ? (
+          <Tarjeta className="mt-5">
+            <Vacio mensaje="Todavía no se ha compartido ningún documento." />
+          </Tarjeta>
+        ) : (
+          <Tarjeta className="mt-5">
+            <ul className="divide-y divide-line">
+              {nino.documentos.map((documento) => (
+                <li
+                  key={documento.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+                >
+                  <div className="min-w-0">
+                    <a
+                      href={`/api/documentos/${documento.id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="font-medium text-brand-dark hover:underline"
+                    >
+                      {documento.nombre}
+                      <span className="visually-hidden">
+                        {" "}
+                        (se abre en una pestaña nueva)
+                      </span>
+                    </a>
+                    <span className="block text-xs text-ink-soft">
+                      {documento.categoria} · {formatTamano(documento.tamanoBytes)} ·{" "}
+                      {formatFecha(documento.createdAt)}
+                    </span>
+                  </div>
+                  <FileText aria-hidden="true" className="size-5 text-ink-soft" />
+                </li>
+              ))}
+            </ul>
+          </Tarjeta>
         )}
       </section>
 
@@ -168,8 +253,8 @@ export default async function ProgresoPage({
           className="mt-0.5 size-5 shrink-0 text-brand-dark"
         />
         <p className="medida-lectura text-sm text-brand-dark">
-          Como padrino ves el nombre, la edad, el programa y los avances
-          publicados. El diagnóstico, la ficha socioeconómica y los datos de la
+          Como padrino ves el nombre, la edad, el programa, los avances
+          publicados y los documentos que el equipo comparte contigo. El diagnóstico, la ficha socioeconómica y los datos de la
           familia son confidenciales y no se comparten.
         </p>
       </div>

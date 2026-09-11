@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { DEPARTAMENTOS } from "@/lib/guatemala";
 
-/** Respuesta común de los server actions usados con `useActionState`. */
 export type EstadoFormulario = {
   ok?: string;
   error?: string;
@@ -9,7 +9,6 @@ export type EstadoFormulario = {
 
 export const ESTADO_INICIAL: EstadoFormulario = {};
 
-/** Convierte los issues de zod en un mapa campo → primer mensaje. */
 export function erroresDeZod(error: z.ZodError): Record<string, string> {
   const mapa: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -31,7 +30,9 @@ export const esquemaInscripcionBeneficiario = z.object({
     message: "Selecciona el sexo.",
   }),
   municipio: texto(2, "Escribe el municipio."),
-  departamento: texto(2, "Escribe el departamento."),
+  departamento: z.enum(DEPARTAMENTOS, {
+    message: "Selecciona el departamento.",
+  }),
   encargadoNombre: texto(3, "Escribe el nombre del encargado."),
   encargadoParentesco: texto(3, "Indica el parentesco con el beneficiario."),
   encargadoTelefono: texto(8, "Escribe un teléfono de contacto."),
@@ -43,20 +44,30 @@ export const esquemaInscripcionBeneficiario = z.object({
   comentarios: z.string().trim().optional(),
 });
 
-export const esquemaInscripcionPadrino = z.object({
-  nombre: texto(3, "Escribe tu nombre completo."),
-  email: z.email("Escribe un correo válido."),
-  telefono: texto(8, "Escribe un teléfono de contacto."),
-  ocupacion: z.string().trim().optional(),
-  aporteMensual: z
-    .string()
-    .trim()
-    .refine((v) => v === "" || Number(v) >= 50, {
-      message: "El aporte mínimo sugerido es de Q50.",
-    })
-    .optional(),
-  motivacion: z.string().trim().optional(),
-});
+export const esquemaInscripcionPadrino = z
+  .object({
+    nombre: texto(3, "Escribe tu nombre completo."),
+    email: z.email("Escribe un correo válido."),
+    telefono: texto(8, "Escribe un teléfono de contacto."),
+    ocupacion: z.string().trim().optional(),
+    aporteMensual: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || Number(v) >= 50, {
+        message: "El aporte mínimo sugerido es de Q50.",
+      })
+      .optional(),
+    motivacion: z.string().trim().optional(),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres.")
+      .max(72, "La contraseña no puede pasar de 72 caracteres."),
+    passwordConfirmacion: z.string(),
+  })
+  .refine((v) => v.password === v.passwordConfirmacion, {
+    message: "Las dos contraseñas no coinciden.",
+    path: ["passwordConfirmacion"],
+  });
 
 export const esquemaContacto = z.object({
   nombre: texto(3, "Escribe tu nombre."),

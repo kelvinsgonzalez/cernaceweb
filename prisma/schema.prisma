@@ -64,6 +64,16 @@ enum EstadoPublicacion {
   PUBLICADO
 }
 
+enum TipoIngreso {
+  PRIMER_INGRESO
+  REINGRESO
+}
+
+enum SituacionLaboral {
+  EMPLEADO
+  DESEMPLEADO
+}
+
 // ---------------------------------------------------------------------------
 // Acceso: usuarios, roles y permisos (los permisos viven en la base)
 // ---------------------------------------------------------------------------
@@ -80,6 +90,13 @@ model User {
   updatedAt    DateTime   @updatedAt
   roles        UserRole[]
   padrino      Padrino?
+  asignaciones AsignacionTerapeuta[]
+  planesAprobados PlanTerapeutico[]
+  avancesRegistrados Seguimiento[]
+  comentarios  ComentarioAvance[]
+  documentos   Documento[]
+  fotosExpediente FotoExpediente[]
+  beneficiario Beneficiario?
 
   @@map("usuarios")
 }
@@ -158,31 +175,105 @@ model Beneficiario {
   municipio         String
   departamento      String
   zonaResidencia    String?
-  encargadoNombre   String
-  encargadoParentesco String
-  encargadoTelefono String
-  encargadoEmail    String?
+  sector            String?
+  escolaridad       String?
+  telefono          String?
+  encargadoId       String?
+  /// Cuenta con la que la familia consulta el expediente. Es de solo lectura:
+  /// la ficha la llena el personal.
+  userId            String?            @unique
   fechaIngreso      DateTime           @db.Date
   programaId        String
   estado            EstadoBeneficiario @default(ACTIVO)
   estadoExpediente  EstadoExpediente   @default(EN_REVISION)
+  /// Lo pide la familia al inscribirse: quiere que se le busque patrocinador.
+  /// Es una petición, no una autorización, y no condiciona la terapia.
+  solicitaPatrocinio Boolean           @default(false)
+  /// Lo concede la administración: autoriza que los datos generales y la foto
+  /// salgan en el sitio público. Hacen falta las dos cosas para aparecer.
   publicadoEnGaleria Boolean           @default(false)
   resumenPublico    String?
-  fotoUrl           String?
+  /// Nombre del archivo en el almacenamiento, nunca una ruta de public/: así
+  /// retirar la autorización deja la foto inaccesible de inmediato.
+  fotoArchivo       String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
   programa          Programa           @relation(fields: [programaId], references: [id])
+  encargado         Encargado?         @relation(fields: [encargadoId], references: [id], onDelete: SetNull)
+  usuario           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  inscripciones     Inscripcion[]
+  plan              PlanTerapeutico?
+  responsables      AsignacionTerapeuta[]
   expedienteClinico ExpedienteClinico?
   fichaSocioeconomica FichaSocioeconomica?
   evaluaciones      EvaluacionClinica[]
   documentos        Documento[]
+  fotosExpediente   FotoExpediente[]
   seguimientos      Seguimiento[]
   citas             Cita[]
   padrinazgos       Padrinazgo[]
+  solicitud         SupportRequest?
 
   @@index([programaId])
+  @@index([encargadoId])
   @@map("beneficiarios")
+}
+
+/// El encargado vive aparte del beneficiario porque un mismo adulto puede
+/// tener a varios hermanos a su cargo y sus datos no deben duplicarse.
+///
+/// `edad` se guarda tal cual la recoge la ficha: a diferencia del beneficiario,
+/// del encargado no se pide fecha de nacimiento, así que es una foto del
+/// momento de la inscripción y se vuelve a preguntar en cada ciclo.
+model Encargado {
+  id                   String            @id @default(cuid())
+  nombre               String
+  parentesco           String?
+  sexo                 Sexo?
+  edad                 Int?
+  noIdentificacion     String?
+  estadoCivil          String?
+  situacionLaboral     SituacionLaboral?
+  escolaridad          String?
+  oficio               String?
+  integrantesFamilia   Int?
+  direccion            String?
+  telefono             String?
+  email                String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  beneficiarios        Beneficiario[]
+
+  @@index([noIdentificacion])
+  @@map("encargados")
+}
+
+/// Ficha de inscripción de un ciclo. El beneficiario se reinscribe cada año,
+/// así que hay una fila por ciclo y el par beneficiario-ciclo es único.
+///
+/// `impresionClinica` y `otrasEnfermedades` son datos clínicos: se leen solo
+/// con el permiso expediente.clinico.leer, igual que el resto del área médica.
+model Inscripcion {
+  id                      String       @id @default(cuid())
+  beneficiarioId          String
+  ciclo                   Int
+  fechaInscripcion        DateTime     @db.Date
+  tipoIngreso             TipoIngreso
+  fechaPrimerIngreso      DateTime?    @db.Date
+  referidoPor             String?
+  areaServicio            String?
+  impresionClinica        String?
+  otrasEnfermedades       String?
+  responsableInscripcion  String
+  voBo                    String?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+  beneficiario            Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@unique([beneficiarioId, ciclo])
+  @@index([ciclo])
+  @@map("inscripciones")
 }
 
 model ExpedienteClinico {
@@ -249,19 +340,28 @@ model Documento {
   categoria       String
   tipoMime        String
   tamanoBytes     Int
-  url             String
+  /// Nombre del archivo en el almacenamiento. Nulo si es un registro histórico
+  /// sin adjunto: la fila documenta que el papel existe aunque no esté escaneado.
+  archivo         String?
+  /// Igual que en los avances: por defecto el documento es interno y solo se
+  /// comparte si alguien lo decide expresamente. Compartir alcanza al padrino
+  /// y a la familia.
+  visibleParaPadrino Boolean   @default(false)
   vigente         Boolean      @default(true)
   fechaVencimiento DateTime?   @db.Date
   subidoPor       String
+  subidoPorId     String?
   createdAt       DateTime     @default(now())
   beneficiario    Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+  autor           User?        @relation(fields: [subidoPorId], references: [id], onDelete: SetNull)
 
   @@index([beneficiarioId])
   @@map("documentos")
 }
 
-/// La bisagra del objetivo 3: `visibleParaPadrino` decide qué avances
-/// puede consultar el padrino en su portal.
+/// `visibleParaPadrino` decide qué sale del equipo. Lo ven el padrino en su
+/// portal y la familia en el suyo: son el mismo público, el de fuera del
+/// equipo. Los comentarios del avance no salen nunca.
 model Seguimiento {
   id                 String       @id @default(cuid())
   beneficiarioId     String
@@ -270,12 +370,119 @@ model Seguimiento {
   titulo             String
   descripcion        String
   visibleParaPadrino Boolean      @default(false)
+  /// Nombre tal como estaba al registrarlo: el histórico no cambia aunque la
+  /// persona se renombre o se dé de baja. `registradoPorId` es el enlace vivo.
   registradoPor      String
+  registradoPorId    String?
   createdAt          DateTime     @default(now())
   beneficiario       Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+  autor              User?        @relation(fields: [registradoPorId], references: [id], onDelete: SetNull)
+  fotos              FotoAvance[]
+  comentarios        ComentarioAvance[]
 
   @@index([beneficiarioId])
+  @@index([registradoPorId])
   @@map("seguimientos")
+}
+
+/// Aprobación para que un beneficiario reciba terapia. El objetivo general y
+/// las anotaciones los lee todo el equipo responsable, no solo quien las
+/// escribió: son el marco común de trabajo.
+model PlanTerapeutico {
+  id              String       @id @default(cuid())
+  beneficiarioId  String       @unique
+  objetivoGeneral String
+  anotaciones     String?
+  activo          Boolean      @default(true)
+  aprobadoPor     String
+  aprobadoPorId   String?
+  fechaAprobacion DateTime     @db.Date
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  beneficiario    Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+  aprobador       User?        @relation(fields: [aprobadoPorId], references: [id], onDelete: SetNull)
+
+  @@map("planes_terapeuticos")
+}
+
+/// Responsables de atender a un beneficiario. Es N:M a propósito: un niño puede
+/// recibir varias terapias de personas distintas, y una persona lleva varios
+/// niños. La asignación decide quién puede registrar avances suyos.
+model AsignacionTerapeuta {
+  id             String       @id @default(cuid())
+  beneficiarioId String
+  terapeutaId    String
+  area           String?
+  activo         Boolean      @default(true)
+  desde          DateTime     @db.Date
+  hasta          DateTime?    @db.Date
+  asignadoPor    String
+  createdAt      DateTime     @default(now())
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+  terapeuta      User         @relation(fields: [terapeutaId], references: [id], onDelete: Cascade)
+
+  @@unique([beneficiarioId, terapeutaId])
+  @@index([terapeutaId])
+  @@map("asignaciones_terapeutas")
+}
+
+/// Foto adjunta a una reseña de avance. `archivo` es el nombre en disco: los
+/// ficheros viven fuera de public/ y se sirven por una ruta que comprueba el
+/// permiso, para que la foto de un niño no quede accesible por su URL.
+/// Fotografía de evidencia del expediente.
+///
+/// Es distinta de la foto principal —que vive en el propio beneficiario porque
+/// es una sola y es la que sale en el sitio cuando se le busca padrino— y de
+/// las fotos de un avance, que ilustran una reseña concreta. Estas documentan
+/// el caso: la condición al ingresar, una visita domiciliar, una ayuda
+/// entregada. Son internas salvo que se marquen compartidas.
+model FotoExpediente {
+  id                 String       @id @default(cuid())
+  beneficiarioId     String
+  archivo            String       @unique
+  tipoMime           String
+  tamanoBytes        Int
+  descripcion        String?
+  visibleParaPadrino Boolean      @default(false)
+  subidaPor          String
+  subidaPorId        String?
+  createdAt          DateTime     @default(now())
+  beneficiario       Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+  autor              User?        @relation(fields: [subidaPorId], references: [id], onDelete: SetNull)
+
+  @@index([beneficiarioId])
+  @@map("fotos_expediente")
+}
+
+model FotoAvance {
+  id            String      @id @default(cuid())
+  seguimientoId String
+  archivo       String      @unique
+  tipoMime      String
+  tamanoBytes   Int
+  createdAt     DateTime    @default(now())
+  seguimiento   Seguimiento @relation(fields: [seguimientoId], references: [id], onDelete: Cascade)
+
+  @@index([seguimientoId])
+  @@map("fotos_avances")
+}
+
+/// Conversación del equipo alrededor de un avance. Es interna por decisión:
+/// el padrino ve el avance, no lo que los compañeros comentan sobre él, que es
+/// justamente lo que permite escribir con franqueza.
+model ComentarioAvance {
+  id            String      @id @default(cuid())
+  seguimientoId String
+  texto         String
+  /// Nombre en el momento de escribirlo; `autorId` es el enlace vivo.
+  autor         String
+  autorId       String?
+  createdAt     DateTime    @default(now())
+  seguimiento   Seguimiento @relation(fields: [seguimientoId], references: [id], onDelete: Cascade)
+  usuario       User?       @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([seguimientoId])
+  @@map("comentarios_avances")
 }
 
 model Cita {
@@ -458,8 +665,17 @@ model SupportRequest {
   comentarios         String?
   estado              EstadoSolicitud @default(NUEVA)
   notaInterna         String?
+  /// Expediente que salió de esta solicitud al aceptarla. Mientras sea null la
+  /// solicitud no se ha convertido, y es lo que impide abrir dos expedientes
+  /// para el mismo niño desde el mismo formulario.
+  beneficiarioId      String?         @unique
+  /// Archivar la saca de las listas de trabajo sin borrarla: queda solo en el
+  /// historial. Se puede archivar en cualquier momento, también sin atender,
+  /// para descartar duplicados o envíos que no van a proceder.
+  archivada           Boolean         @default(false)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
+  beneficiario        Beneficiario?   @relation(fields: [beneficiarioId], references: [id], onDelete: SetNull)
 
   @@map("solicitudes_inscripcion")
 }

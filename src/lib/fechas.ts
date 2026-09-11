@@ -1,14 +1,7 @@
 /**
- * Fechas sin hora vs. marcas de tiempo.
- *
- * PostgreSQL guarda las columnas `@db.Date` a medianoche UTC. Guatemala es
- * UTC-6, así que formatearlas en zona local las corre al día anterior: una
- * fecha de nacimiento del 14/03 se mostraría como 13/03.
- *
- * Por eso hay dos funciones separadas:
- *  - `formatFecha` fuerza timeZone UTC y es la que se usa con fechas de
- *    calendario (nacimiento, ingreso, evaluaciones, avances…).
- *  - `formatFechaHora` usa la zona local y es la de `createdAt`/`updatedAt`.
+ * Las columnas `@db.Date` se guardan a medianoche UTC y Guatemala es UTC-6, así
+ * que formatearlas en zona local las corre al día anterior. Las fechas de
+ * calendario se formatean en UTC; solo `createdAt`/`updatedAt` usan la zona local.
  */
 
 const ZONA_LOCAL = "America/Guatemala";
@@ -48,7 +41,6 @@ export function formatFechaHora(fecha: Date | string | null | undefined): string
   }).format(d);
 }
 
-/** Edad en años cumplidos, calculada íntegramente en UTC. */
 export function calcularEdad(fechaNacimiento: Date | string): number {
   const nacimiento =
     fechaNacimiento instanceof Date ? fechaNacimiento : new Date(fechaNacimiento);
@@ -62,14 +54,12 @@ export function calcularEdad(fechaNacimiento: Date | string): number {
   return edad;
 }
 
-/** Valor para un <input type="date">, en UTC para no correr el día. */
 export function fechaParaInput(fecha: Date | string | null | undefined): string {
   if (!fecha) return "";
   const d = fecha instanceof Date ? fecha : new Date(fecha);
   return d.toISOString().slice(0, 10);
 }
 
-/** Convierte "2018-03-14" en la medianoche UTC de ese día. */
 export function fechaDesdeInput(valor: string): Date {
   return new Date(`${valor}T00:00:00.000Z`);
 }

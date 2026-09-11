@@ -8,6 +8,11 @@ import {
   CampoTexto,
   MensajeFormulario,
 } from "@/components/ui";
+import {
+  DEPARTAMENTOS,
+  DEPARTAMENTO_PREDETERMINADO,
+  MUNICIPIO_PREDETERMINADO,
+} from "@/lib/guatemala";
 import { ESTADO_INICIAL } from "@/lib/formularios";
 import type { EstadoFormulario } from "@/lib/formularios";
 
@@ -24,16 +29,10 @@ function Mensajes({ estado }: { estado: EstadoFormulario }) {
 }
 
 /* -------------------------------------------------------------------------
-   Objetivo 5 — inscripción de beneficiarios
+   Inscripción de beneficiarios
    ------------------------------------------------------------------------- */
 
-export function FormularioBeneficiario({
-  accion,
-  programas,
-}: {
-  accion: Accion;
-  programas: string[];
-}) {
+export function FormularioBeneficiario({ accion }: { accion: Accion }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
 
@@ -78,22 +77,29 @@ export function FormularioBeneficiario({
           </CampoSelect>
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
+          <CampoSelect
+            id="departamento"
+            name="departamento"
+            etiqueta="Departamento"
+            requerido
+            defaultValue={DEPARTAMENTO_PREDETERMINADO}
+            error={e.departamento}
+            autoComplete="address-level1"
+          >
+            {DEPARTAMENTOS.map((departamento) => (
+              <option key={departamento} value={departamento}>
+                {departamento}
+              </option>
+            ))}
+          </CampoSelect>
           <CampoTexto
             id="municipio"
             name="municipio"
             etiqueta="Municipio"
             requerido
+            defaultValue={MUNICIPIO_PREDETERMINADO}
             error={e.municipio}
             autoComplete="address-level2"
-          />
-          <CampoTexto
-            id="departamento"
-            name="departamento"
-            etiqueta="Departamento"
-            requerido
-            defaultValue="Chimaltenango"
-            error={e.departamento}
-            autoComplete="address-level1"
           />
         </div>
         <CampoTexto
@@ -103,20 +109,6 @@ export function FormularioBeneficiario({
           ayuda="Si aún no hay diagnóstico, déjalo en blanco: la evaluación inicial es parte del proceso."
           error={e.diagnostico}
         />
-        <CampoSelect
-          id="programaSolicitado"
-          name="programaSolicitado"
-          etiqueta="Programa de interés"
-          ayuda="Es solo una referencia; el programa final se define tras la evaluación."
-          defaultValue=""
-        >
-          <option value="">Sin preferencia</option>
-          {programas.map((programa) => (
-            <option key={programa} value={programa}>
-              {programa}
-            </option>
-          ))}
-        </CampoSelect>
       </fieldset>
 
       <fieldset className="flex flex-col gap-5">
@@ -153,8 +145,12 @@ export function FormularioBeneficiario({
             id="encargadoEmail"
             name="encargadoEmail"
             type="email"
-            etiqueta="Correo electrónico"
-            ayuda="Opcional. Si lo dejas, te avisamos por correo del resultado."
+            etiqueta={
+              <>
+                Correo electrónico{" "}
+                <em className="font-normal text-ink-soft">(opcional)</em>
+              </>
+            }
             error={e.encargadoEmail}
             autoComplete="email"
           />
@@ -177,7 +173,7 @@ export function FormularioBeneficiario({
 }
 
 /* -------------------------------------------------------------------------
-   Objetivo 6 — inscripción de padrinos
+   Inscripción de padrinos
    ------------------------------------------------------------------------- */
 
 export function FormularioPadrino({
@@ -248,9 +244,42 @@ export function FormularioPadrino({
         error={e.motivacion}
       />
 
+      <fieldset className="flex flex-col gap-5 border-t border-line pt-6">
+        <legend className="font-heading text-lg font-semibold text-ink">
+          Tu acceso al portal
+        </legend>
+        <p className="medida-lectura text-sm text-ink-soft">
+          Con el correo de arriba y esta contraseña entrarás al portal del
+          padrino para seguir los avances de tu apadrinado.
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <CampoTexto
+            id="password"
+            name="password"
+            type="password"
+            etiqueta="Contraseña"
+            ayuda="Mínimo 8 caracteres."
+            requerido
+            minLength={8}
+            error={e.password}
+            autoComplete="new-password"
+          />
+          <CampoTexto
+            id="passwordConfirmacion"
+            name="passwordConfirmacion"
+            type="password"
+            etiqueta="Repite la contraseña"
+            requerido
+            minLength={8}
+            error={e.passwordConfirmacion}
+            autoComplete="new-password"
+          />
+        </div>
+      </fieldset>
+
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">
-          {pendiente ? "Enviando…" : "Enviar inscripción"}
+          {pendiente ? "Creando tu cuenta…" : "Crear cuenta e inscribirme"}
         </Boton>
       </div>
     </form>
@@ -323,7 +352,7 @@ export function FormularioContacto({ accion }: { accion: Accion }) {
 }
 
 /* -------------------------------------------------------------------------
-   Objetivo 4 — inicio del flujo de donación
+   Donación
    ------------------------------------------------------------------------- */
 
 export function FormularioDonacion({

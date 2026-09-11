@@ -1,43 +1,88 @@
 @import "tailwindcss";
 
-@theme {
-  --color-brand-primary: #246bce;
-  --color-brand-dark: #153b6d;
-  --color-brand-sky: #eaf5ff;
-  --color-brand-green: #3baa74;
-  --color-brand-coral: #f27c6b;
-  --color-brand-yellow: #f6c453;
+/* =========================================================================
+   Identidad visual "Azul CERNACE"
 
-  --color-canvas: #f7f9fc;
+   Azul institucional dominante —marino profundo para las superficies con
+   letra blanca, azul real para la acción— con dos acentos secos: cian para
+   los degradados de titular y ámbar para lo que debe destacar sobre el azul.
+   Los nombres de los tokens no cambian respecto a la versión anterior, así
+   que ninguna pantalla tuvo que cambiar de clase.
+   Cada par texto/fondo está verificado a contraste AA (4.5:1).
+
+   Alternativa cálida "Telar" (jade + sol de maíz), por si se quiere volver:
+     --color-brand-primary: #0f6b52;  --color-brand-dark: #06302a;
+     --color-brand-sky: #e7efe4;      --color-brand-green: #2b7a45;
+     --color-brand-coral: #f2a882;    --color-brand-yellow: #f2b134;
+     --color-canvas: #f6f1e7;         --color-surface: #fffdf8;
+     --color-line: #e0d7c6;           --color-ink: #1c221e;
+     --color-ink-soft: #5c635b;       --color-crema: #f3ead8;
+   ========================================================================= */
+
+@theme {
+  --color-brand-primary: #1556c4; /* azul real: acción principal */
+  --color-brand-dark: #0a1c3f; /* marino: franjas con letra blanca */
+  --color-brand-sky: #e6eefc; /* tinte azul claro */
+  --color-brand-green: #12735a; /* verde de avance */
+  --color-brand-coral: #1fa8d8; /* cian: acento de degradado */
+  --color-brand-yellow: #ffc02e; /* ámbar: acento seco sobre el azul */
+
+  --color-canvas: #f3f6fc;
   --color-surface: #ffffff;
-  --color-line: #dde3eb;
-  --color-ink: #172033;
-  --color-ink-soft: #5e687a;
-  --color-danger: #c83e4d;
+  --color-line: #dbe3f0;
+  --color-ink: #101a2e;
+  --color-ink-soft: #54607a;
+  --color-danger: #c02b3a;
 
   /* pares de estado, cada uno cumple contraste AA sobre su fondo */
-  --color-ok-bg: #e6f4ec;
-  --color-ok-fg: #1b6647;
-  --color-warn-bg: #fdf3dc;
-  --color-warn-fg: #7a5a0f;
-  --color-bad-bg: #fbe9e6;
-  --color-bad-fg: #8e3626;
+  --color-ok-bg: #e1f1ea;
+  --color-ok-fg: #0f6349;
+  --color-warn-bg: #fdf0d4;
+  --color-warn-fg: #755110;
+  --color-bad-bg: #fbe7e8;
+  --color-bad-fg: #8f2b35;
 
-  --font-heading: var(--fuente-poppins), Poppins, ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--fuente-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+  /* Blanco frío para el texto sobre las superficies azules. */
+  --color-crema: #f4f8ff;
+  --color-danger-dark: #8f1f2b;
 
-  --radius-sm: 0.625rem;
-  --radius-md: 1rem;
+  --font-heading: var(--fuente-titulo), Fraunces, "Iowan Old Style", Georgia, serif;
+  --font-body: var(--fuente-texto), Karla, ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
   --radius-lg: 1.5rem;
+
+  --shadow-suave: 0 1px 1px rgba(16, 26, 46, 0.05), 0 10px 24px -18px rgba(10, 28, 63, 0.5);
+  --shadow-alta: 0 2px 4px rgba(16, 26, 46, 0.06), 0 22px 44px -26px rgba(10, 28, 63, 0.6);
+
+  --ease-suave: cubic-bezier(0.22, 0.68, 0.28, 1);
+}
+
+:root {
+  /* Ruido muy tenue: le quita el plano perfecto al papel sin pesar. */
+  /* Separación de la barra flotante respecto al borde superior, respetando
+     la muesca del teléfono. La usan la barra, su hueco y el panel. */
+  --margen-flotante: max(0.75rem, env(safe-area-inset-top));
+
+  --grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23r)' opacity='0.03'/%3E%3C/svg%3E");
 }
 
 html {
   /* 1rem = 16px, respetando la preferencia del navegador */
   font-size: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   background-color: var(--color-canvas);
+  /* Atmósfera: tres focos de luz azul sobre el papel frío, más el grano. */
+  background-image:
+    var(--grano),
+    radial-gradient(58rem 46rem at 92% -12%, rgba(31, 168, 216, 0.16), transparent 62%),
+    radial-gradient(46rem 40rem at -12% 4%, rgba(21, 86, 196, 0.12), transparent 60%),
+    radial-gradient(52rem 44rem at 50% 118%, rgba(21, 86, 196, 0.1), transparent 62%);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-body);
   line-height: 1.6;
@@ -50,7 +95,9 @@ h4,
 h5,
 h6 {
   font-family: var(--font-heading);
-  line-height: 1.25;
+  font-optical-sizing: auto;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
@@ -58,6 +105,206 @@ h6 {
 .medida-lectura {
   max-width: 68ch;
 }
+
+/* Rótulo de sección: versalitas espaciadas en sol de maíz o jade. */
+.rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Filete corto que abre los encabezados de sección. */
+.filete::before {
+  content: "";
+  display: block;
+  width: 3.25rem;
+  height: 3px;
+  margin-bottom: 1rem;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-brand-primary), var(--color-brand-coral));
+}
+
+/* =========================================================================
+   Tramas y superficies
+   ========================================================================= */
+
+/* Retícula fina, como un plano: la misma trama en claro y en oscuro. */
+.trama-fina {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(10, 28, 63, 0.05) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, rgba(10, 28, 63, 0.05) 0 1px, transparent 1px 14px);
+}
+
+.trama-fina-clara {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(244, 248, 255, 0.1) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, rgba(244, 248, 255, 0.1) 0 1px, transparent 1px 14px);
+}
+
+/* Franja azul de portada: marino a azul real, retícula y dos halos de cian.
+   Es la superficie de letra blanca del sitio. */
+.franja-tinta {
+  background-color: var(--color-brand-dark);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(244, 248, 255, 0.06) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(244, 248, 255, 0.06) 0 1px, transparent 1px 16px),
+    radial-gradient(38rem 30rem at 84% 4%, rgba(31, 168, 216, 0.3), transparent 66%),
+    radial-gradient(46rem 36rem at 4% 98%, rgba(21, 86, 196, 0.68), transparent 70%),
+    linear-gradient(158deg, #061229 0%, #0a1c3f 55%, #102a5c 100%);
+  color: var(--color-crema);
+}
+
+/* Franja clara de cabecera para las páginas interiores. */
+.franja-clara {
+  background-color: var(--color-brand-sky);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(10, 28, 63, 0.04) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(90deg, rgba(10, 28, 63, 0.04) 0 1px, transparent 1px 14px),
+    radial-gradient(40rem 26rem at 88% 0%, rgba(31, 168, 216, 0.3), transparent 64%),
+    radial-gradient(36rem 26rem at 0% 100%, rgba(21, 86, 196, 0.18), transparent 62%);
+}
+
+/* Franja de cierre: azul real a cian, con letra blanca encima. */
+.franja-cierre {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(244, 248, 255, 0.07) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(244, 248, 255, 0.07) 0 1px, transparent 1px 16px),
+    linear-gradient(105deg, #0a1c3f 0%, #1556c4 58%, #1a7fc4 100%);
+  color: var(--color-crema);
+}
+
+/* Titular en degradado cian → azul claro sobre las franjas azules. El color
+   de respaldo va primero: si el navegador no recorta el fondo al texto, se
+   lee igual en blanco cian. */
+.texto-degradado {
+  color: #7fd4f2;
+  background-image: linear-gradient(96deg, #63dcff 0%, #7fb8ff 55%, #a9c8ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .texto-degradado {
+    color: transparent;
+  }
+}
+
+/* =========================================================================
+   Movimiento
+
+   Dos piezas: la entrada escalonada de la portada (animation-delay) y el
+   revelado al desplazar, que solo se activa donde el navegador soporta
+   líneas de tiempo de scroll. Sin soporte el contenido ya está visible.
+   ========================================================================= */
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes acercar {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.aparece {
+  animation: aparecer 0.75s var(--ease-suave) both;
+  animation-delay: var(--retraso, 0ms);
+}
+
+.acerca {
+  animation: acercar 1.1s var(--ease-suave) both;
+  animation-delay: var(--retraso, 0ms);
+}
+
+/* Escalones fijos para cuando no hace falta calcular el retraso en el JSX. */
+.aparece-2 {
+  --retraso: 110ms;
+}
+
+.aparece-3 {
+  --retraso: 220ms;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .revela {
+      animation: aparecer 1s linear both;
+      animation-timeline: view();
+      animation-range: entry 8% cover 26%;
+    }
+  }
+}
+
+/* Tarjeta que responde al puntero: se levanta y calienta su borde. */
+.tarjeta-viva {
+  transition:
+    transform 0.35s var(--ease-suave),
+    box-shadow 0.35s var(--ease-suave),
+    border-color 0.35s var(--ease-suave);
+}
+
+.tarjeta-viva:hover,
+.tarjeta-viva:focus-within {
+  transform: translateY(-4px);
+  border-color: color-mix(in oklab, var(--color-brand-primary) 35%, var(--color-line));
+  box-shadow: var(--shadow-alta);
+}
+
+/* Subrayado que se despliega desde la izquierda (navegación y enlaces guía). */
+.enlace-vivo {
+  position: relative;
+}
+
+.enlace-vivo::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s var(--ease-suave);
+}
+
+.enlace-vivo:hover::after,
+.enlace-vivo:focus-visible::after,
+.enlace-vivo[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+/* La flecha de los enlaces de continuación avanza al pasar el puntero. */
+.grupo-flecha .flecha {
+  transition: transform 0.3s var(--ease-suave);
+}
+
+.grupo-flecha:hover .flecha {
+  transform: translateX(0.25rem);
+}
+
+/* =========================================================================
+   Accesibilidad
+   ========================================================================= */
 
 /* Se oculta a la vista pero sigue disponible para lectores de pantalla.
    Al recibir foco se revela (lo usa el enlace de salto). */
@@ -100,8 +347,9 @@ h6 {
   border-radius: 4px;
 }
 
-/* Sobre superficies oscuras el contorno azul se pierde: se usa el amarillo. */
-.superficie-oscura :focus-visible {
+/* Sobre superficies oscuras el contorno jade se pierde: se usa el sol de maíz. */
+.superficie-oscura :focus-visible,
+.franja-tinta :focus-visible {
   outline-color: var(--color-brand-yellow);
 }
 
@@ -109,8 +357,25 @@ main:focus {
   outline: none;
 }
 
+/* La cabecera pegajosa no debe tapar el destino de un enlace de ancla. */
+:target {
+  scroll-margin-top: 7rem;
+}
+
 table {
   border-collapse: collapse;
+}
+
+/* Al imprimir (comprobantes de donación, expedientes) no puede quedar nada a
+   media animación: todo se fuerza a su estado final. */
+@media print {
+  .aparece,
+  .acerca,
+  .revela {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -121,5 +386,174 @@ table {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================================
+   Menú de acciones — Popover API, sin una línea de JavaScript
+
+   El panel vive en la capa superior del navegador, así que no lo recorta el
+   `overflow-x` de las tablas ni lo tapa una fila de abajo. En móvil sube desde
+   el borde inferior a ancho completo, donde llega el pulgar; a partir de `sm`
+   se queda como una tarjeta centrada sobre el fondo atenuado.
+
+   Sin Popover API (Safari < 17) el navegador ignora el atributo y el panel se
+   quedaría fijo y siempre abierto: por eso todo lo flotante va dentro del
+   `@supports` y ahí el panel se ve en su sitio, como una lista más de la fila.
+   ========================================================================= */
+
+.menu-panel {
+  min-width: 13rem;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-alta);
+  color: var(--color-ink);
+}
+
+/* El disparador solo tiene sentido si el navegador sabe abrir el panel. */
+@supports not selector(:popover-open) {
+  .menu-disparador {
+    display: none;
+  }
+}
+
+@supports selector(:popover-open) {
+  .menu-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: none;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    border-bottom: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .menu-panel::backdrop {
+    background: rgba(10, 28, 63, 0.4);
+  }
+
+  @media (min-width: 640px) {
+    .menu-panel {
+      inset: 0;
+      width: max-content;
+      max-width: min(22rem, calc(100vw - 2rem));
+      height: max-content;
+      margin: auto;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--color-line);
+      border-radius: var(--radius-md);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu-panel:popover-open {
+    animation: menu-entra 0.2s var(--ease-suave) both;
+  }
+}
+
+@keyframes menu-entra {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes menu-entra {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* Última columna anclada al borde derecho mientras la tabla no cabe: en un
+   teléfono las acciones quedarían fuera de la pantalla y habría que arrastrar
+   la tabla a ciegas para llegar a ellas. */
+.tabla-acciones-fijas th:last-child,
+.tabla-acciones-fijas td:last-child:not([colspan]) {
+  position: sticky;
+  right: 0;
+  background: var(--color-surface);
+  box-shadow: -10px 0 12px -10px rgba(10, 28, 63, 0.4);
+}
+
+.tabla-acciones-fijas thead th:last-child,
+.tabla-acciones-fijas tbody tr:hover td:last-child:not([colspan]) {
+  background: var(--color-canvas);
+}
+
+/* A partir de ahí la tabla entra entera y el anclaje sobra. */
+@media (min-width: 60rem) {
+  .tabla-acciones-fijas th:last-child,
+  .tabla-acciones-fijas td:last-child:not([colspan]) {
+    position: static;
+    box-shadow: none;
+  }
+
+  .tabla-acciones-fijas tbody tr:hover td:last-child:not([colspan]) {
+    background: transparent;
+  }
+}
+
+/* =========================================================================
+   Menú flotante de módulos (móvil y tableta)
+
+   Barra anclada arriba, por encima del contenido y separada de los bordes,
+   que al abrirse se prolonga hacia abajo en el panel de módulos. Las medidas
+   respetan las zonas seguras del teléfono (la muesca, la barra de gestos).
+   ========================================================================= */
+
+.capa-flotante {
+  top: var(--margen-flotante);
+  left: max(0.75rem, env(safe-area-inset-left));
+  right: max(0.75rem, env(safe-area-inset-right));
+}
+
+/* Alto que reserva el contenido para no nacer bajo la barra. */
+.hueco-flotante {
+  height: calc(3.75rem + var(--margen-flotante) + 0.75rem);
+}
+
+.panel-flotante {
+  /* Lo que queda de pantalla bajo la barra; el resto se desplaza dentro. */
+  max-height: calc(100dvh - 4.5rem - var(--margen-flotante));
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: panel-baja 0.22s var(--ease-suave) both;
+}
+
+.velo-menu {
+  animation: velo-aparece 0.22s var(--ease-suave) both;
+}
+
+@keyframes panel-baja {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes velo-aparece {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }

@@ -1,83 +1,52 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  ClipboardCheck,
-  Eye,
-  HandHeart,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { EnlaceBoton, Tarjeta } from "@/components/ui";
 import { IconoPrograma } from "@/components/icono-programa";
+import { PortadaBeneficiario } from "@/components/foto-beneficiario";
+import { Carrusel, type Lamina } from "@/components/carrusel";
 import { calcularEdad } from "@/lib/fechas";
-import { primerNombre } from "@/lib/utils";
+import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
-// Las cifras del hero salen de la base: sin esto Next prerenderiza la página
-// y los números quedan congelados en el momento del build.
+// Sin esto el conteo del cierre quedaría congelado en el momento del build.
 export const dynamic = "force-dynamic";
 
-const SELLOS = [
+const LAMINAS: Lamina[] = [
   {
-    icono: ShieldCheck,
-    titulo: "Expedientes resguardados",
-    texto: "Acceso por rol y bitácora de cada consulta.",
+    src: "/carrusel/terapia-fisica.png",
+    alt: "Un terapeuta atiende a un niño recostado en la camilla del área de terapia física.",
+    pie: "Terapia física en el centro",
   },
   {
-    icono: Eye,
-    titulo: "Avances verificables",
-    texto: "El padrino consulta el progreso de su beneficiado.",
+    src: "/carrusel/entrega-silla.png",
+    alt: "Un técnico ajusta una silla de ruedas en el corredor de la casa de un beneficiario.",
+    pie: "Entrega y ajuste de sillas de ruedas",
   },
   {
-    icono: ClipboardCheck,
-    titulo: "Cuentas claras",
-    texto: "Cada donación queda registrada con su comprobante.",
-  },
-];
-
-const PASOS = [
-  {
-    titulo: "Elige a quién acompañar",
-    texto:
-      "En la galería aparecen los beneficiarios que todavía no tienen apoyo asignado, con su edad y su programa.",
+    src: "/carrusel/familias.jpg",
+    alt: "Familias, beneficiarios y personal de CERNACE reunidos en el salón del centro.",
+    pie: "Encuentro con las familias",
   },
   {
-    titulo: "Formaliza tu apadrinamiento",
-    texto:
-      "Llenas el formulario de inscripción, defines tu aporte mensual y el equipo confirma la asignación.",
-  },
-  {
-    titulo: "Sigue su progreso",
-    texto:
-      "Con tu acceso al portal ves los avances que el personal marca como visibles para el padrino.",
+    src: "/carrusel/equipo.jpg",
+    alt: "El equipo de CERNACE reunido en el vestíbulo del centro.",
+    pie: "El equipo de CERNACE",
   },
 ];
 
 export default async function LandingPage() {
-  const [
-    totalBeneficiarios,
-    programasActivos,
-    totalPadrinos,
-    sinPadrino,
-    programas,
-    esperando,
-    historias,
-  ] = await Promise.all([
-    prisma.beneficiario.count({ where: { estado: "ACTIVO" } }),
-    prisma.programa.count({ where: { activo: true } }),
-    prisma.padrino.count({ where: { activo: true } }),
+  const [sinPadrino, programas, esperando] = await Promise.all([
     prisma.beneficiario.count({
       where: { estado: "ACTIVO", padrinazgos: { none: { activo: true } } },
     }),
     prisma.programa.findMany({
       where: { activo: true },
       orderBy: { nombre: "asc" },
-      include: { _count: { select: { beneficiarios: true } } },
     }),
     prisma.beneficiario.findMany({
       where: {
         estado: "ACTIVO",
+        // Las dos condiciones: la familia lo pidió y la administración lo autorizó.
+        solicitaPatrocinio: true,
         publicadoEnGaleria: true,
         padrinazgos: { none: { activo: true } },
       },
@@ -87,145 +56,133 @@ export default async function LandingPage() {
         nombres: true,
         fechaNacimiento: true,
         resumenPublico: true,
+        fotoArchivo: true,
         programa: { select: { nombre: true, icono: true } },
       },
       take: 3,
       orderBy: { fechaIngreso: "asc" },
     }),
-    prisma.story.findMany({
-      where: { estado: "PUBLICADO" },
-      orderBy: { publicadaEn: "desc" },
-      take: 3,
-    }),
   ]);
-
-  const cifras = [
-    { etiqueta: "Beneficiarios activos", valor: totalBeneficiarios },
-    { etiqueta: "Programas activos", valor: programasActivos },
-    { etiqueta: "Padrinos", valor: totalPadrinos },
-    { etiqueta: "Esperan padrino", valor: sinPadrino },
-  ];
 
   return (
     <>
       {/* Hero */}
-      <section className="bg-brand-sky" aria-labelledby="hero-titulo">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr]">
+      <section
+        className="franja-tinta superficie-oscura relative overflow-hidden"
+        aria-labelledby="hero-titulo"
+      >
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:py-20 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-1.5 text-sm font-semibold text-brand-dark">
-              <Sparkles aria-hidden="true" className="size-4" />
-              Chimaltenango, Guatemala
-            </p>
             <h1
               id="hero-titulo"
-              className="mt-5 font-heading text-4xl font-bold text-brand-dark sm:text-5xl"
+              className="max-w-[22ch] font-heading text-[2.2rem] leading-[1.1] font-semibold text-crema sm:text-[2.75rem]"
             >
-              Cada niño avanza a su ritmo. Nuestro trabajo es que nadie se quede
-              sin acompañamiento.
+              Centro de Educación y Rehabilitación para Niños y Adolescentes con
+              Capacidades Especiales
             </h1>
-            <p className="medida-lectura mt-5 text-lg text-ink">
+            <p className="medida-lectura mt-6 text-lg text-crema/80">
               CERNACE atiende a niñas, niños y adolescentes con capacidades
-              especiales con terapia, educación adaptada y apoyo a sus familias.
-              Cada expediente se lleva al día y cada avance se registra.
+              especiales: terapia, educación adaptada y apoyo a sus familias.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <EnlaceBoton href="/donar" className="px-6 py-3 text-base">
-                Donar ahora
+              <EnlaceBoton
+                href="/donar"
+                className="bg-brand-yellow px-6 py-3 text-base text-brand-dark hover:bg-crema"
+              >
+                Donar
               </EnlaceBoton>
               <EnlaceBoton
                 href="/apadrina"
                 variante="contorno"
-                className="px-6 py-3 text-base"
+                className="border-crema/40 bg-transparent px-6 py-3 text-base text-crema hover:border-crema hover:bg-crema/10"
               >
-                Apadrina a un niño
+                Apadrinar a un niño
+              </EnlaceBoton>
+              <EnlaceBoton
+                href="/inscripcion/beneficiario"
+                variante="suave"
+                className="bg-transparent px-6 py-3 text-base text-crema/85 hover:bg-crema/10 hover:text-crema"
+              >
+                Inscribir a un niño
               </EnlaceBoton>
             </div>
-
-            <ul className="mt-10 grid gap-4 sm:grid-cols-3">
-              {SELLOS.map((sello) => (
-                <li key={sello.titulo} className="flex gap-3">
-                  <sello.icono
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-brand-green"
-                  />
-                  <span>
-                    <span className="block text-sm font-semibold text-ink">
-                      {sello.titulo}
-                    </span>
-                    <span className="block text-sm text-ink-soft">{sello.texto}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {cifras.map((cifra) => (
-              <Tarjeta key={cifra.etiqueta} className="p-6">
-                <p className="font-heading text-4xl font-bold text-brand-primary">
-                  {cifra.valor}
-                </p>
-                <p className="mt-1 text-sm font-medium text-ink-soft">
-                  {cifra.etiqueta}
-                </p>
-              </Tarjeta>
-            ))}
+          {/* El carrusel va enmarcado en claro: su pie de foto es tinta
+              oscura y sobre la franja no tendría contraste. */}
+          <div className="rounded-[var(--radius-lg)] border border-crema/15 bg-surface/95 p-3 shadow-alta">
+            <Carrusel laminas={LAMINAS} />
           </div>
         </div>
       </section>
 
       {/* Programas */}
       <section
-        className="mx-auto max-w-6xl px-4 py-16"
+        className="mx-auto max-w-6xl px-4 py-14 sm:py-20"
         aria-labelledby="programas-titulo"
       >
         <h2
           id="programas-titulo"
-          className="font-heading text-3xl font-bold text-ink"
+          className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
         >
-          Nuestros programas
+          Programas
         </h2>
-        <p className="medida-lectura mt-3 text-ink-soft">
-          Cada beneficiario entra a un programa según su evaluación inicial y
-          puede recibir apoyo de varias áreas a la vez.
-        </p>
-
         <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {programas.map((programa) => (
             <li key={programa.id}>
               <Tarjeta className="h-full p-6">
-                <span className="flex size-11 items-center justify-center rounded-[var(--radius-sm)] bg-brand-sky text-brand-primary">
+                <span className="flex size-12 items-center justify-center rounded-[var(--radius-sm)] bg-brand-sky text-brand-primary">
                   <IconoPrograma nombre={programa.icono} className="size-5" />
                 </span>
-                <h3 className="mt-4 font-heading text-lg font-semibold text-ink">
+                <h3 className="mt-5 font-heading text-xl font-semibold text-ink">
                   {programa.nombre}
                 </h3>
                 <p className="medida-lectura mt-2 text-sm text-ink-soft">
                   {programa.descripcion}
                 </p>
-                <p className="mt-4 text-sm font-semibold text-brand-dark">
-                  {programa._count.beneficiarios}{" "}
-                  {programa._count.beneficiarios === 1
-                    ? "beneficiario inscrito"
-                    : "beneficiarios inscritos"}
-                </p>
               </Tarjeta>
             </li>
           ))}
         </ul>
+
+        {/* Puente hacia el formulario de inscripción, más abajo en esta misma página. */}
+        <Tarjeta className="mt-10 bg-brand-sky p-6 sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div>
+              <h3 className="font-heading text-2xl font-semibold text-ink sm:text-3xl">
+                También queremos ayudarte
+              </h3>
+              <p className="medida-lectura mt-3 text-ink-soft">
+                Ningún diagnóstico define hasta dónde puede llegar un niño. Si
+                en tu familia hay alguien que necesita terapia, equipo adaptado
+                o acompañamiento, aquí empieza el camino: cuéntanos su historia
+                y damos el primer paso juntos.
+              </p>
+            </div>
+            <EnlaceBoton
+              href="/inscripcion/beneficiario"
+              className="px-6 py-3 text-base"
+            >
+              Inscribir a un niño
+            </EnlaceBoton>
+          </div>
+        </Tarjeta>
       </section>
 
       {/* Esperan padrino */}
-      <section className="bg-surface py-16" aria-labelledby="esperan-titulo">
+      <section
+        className="border-y border-line bg-surface py-14 sm:py-20"
+        aria-labelledby="esperan-titulo"
+      >
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2
                 id="esperan-titulo"
-                className="font-heading text-3xl font-bold text-ink"
+                className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
               >
-                Ellos esperan un padrino
+                Beneficiarios que esperan padrino
               </h2>
               <p className="medida-lectura mt-3 text-ink-soft">
                 Publicamos únicamente su primer nombre, su edad y su programa.
@@ -234,14 +191,13 @@ export default async function LandingPage() {
             </div>
             <EnlaceBoton href="/apadrina" variante="contorno">
               Ver a todos
-              <ArrowRight aria-hidden="true" className="size-4" />
             </EnlaceBoton>
           </div>
 
           {esperando.length === 0 ? (
             <p className="mt-8 text-ink-soft">
               Ahora mismo todos los beneficiarios publicados tienen padrino
-              asignado. ¡Gracias!
+              asignado.
             </p>
           ) : (
             <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -250,10 +206,11 @@ export default async function LandingPage() {
                 return (
                   <li key={nino.id}>
                     <Tarjeta className="flex h-full flex-col p-6">
-                      <span className="flex size-14 items-center justify-center rounded-full bg-brand-yellow font-heading text-xl font-bold text-brand-dark">
-                        {nombre[0]}
-                      </span>
-                      <h3 className="mt-4 font-heading text-lg font-semibold text-ink">
+                      <PortadaBeneficiario
+                        nombre={nombre}
+                        fotoUrl={urlFotoBeneficiario(nino.id, nino.fotoArchivo)}
+                      />
+                      <h3 className="mt-5 font-heading text-xl font-semibold text-ink">
                         {nombre}, {calcularEdad(nino.fechaNacimiento)} años
                       </h3>
                       <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-brand-primary">
@@ -270,11 +227,10 @@ export default async function LandingPage() {
                       ) : null}
                       <Link
                         href={`/apadrina/${nino.id}`}
-                        className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-dark hover:underline"
+                        className="mt-5 inline-flex text-sm font-semibold text-brand-primary underline underline-offset-4"
                       >
-                        Conocer su historia
-                        <span className="visually-hidden">de {nombre}</span>
-                        <ArrowRight aria-hidden="true" className="size-4" />
+                        Ver su ficha
+                        <span className="visually-hidden"> de {nombre}</span>
                       </Link>
                     </Tarjeta>
                   </li>
@@ -285,92 +241,34 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
-      <section
-        className="mx-auto max-w-6xl px-4 py-16"
-        aria-labelledby="pasos-titulo"
-      >
-        <h2 id="pasos-titulo" className="font-heading text-3xl font-bold text-ink">
-          Cómo funciona el apadrinamiento
-        </h2>
-        <ol className="mt-8 grid gap-5 md:grid-cols-3">
-          {PASOS.map((paso, indice) => (
-            <li key={paso.titulo}>
-              <Tarjeta className="h-full p-6">
-                <span className="flex size-10 items-center justify-center rounded-full bg-brand-primary font-heading text-lg font-bold text-white">
-                  {indice + 1}
-                </span>
-                <h3 className="mt-4 font-heading text-lg font-semibold text-ink">
-                  {paso.titulo}
-                </h3>
-                <p className="medida-lectura mt-2 text-sm text-ink-soft">
-                  {paso.texto}
-                </p>
-              </Tarjeta>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* Historias */}
-      <section className="bg-surface py-16" aria-labelledby="historias-titulo">
-        <div className="mx-auto max-w-6xl px-4">
-          <h2
-            id="historias-titulo"
-            className="font-heading text-3xl font-bold text-ink"
-          >
-            Historias de avance
-          </h2>
-          <ul className="mt-8 grid gap-5 md:grid-cols-3">
-            {historias.map((historia) => (
-              <li key={historia.id}>
-                <Tarjeta className="h-full p-6">
-                  <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-green">
-                    <HandHeart aria-hidden="true" className="size-4" />
-                    {historia.programa ?? "CERNACE"}
-                  </p>
-                  <h3 className="mt-3 font-heading text-lg font-semibold text-ink">
-                    {historia.titulo}
-                  </h3>
-                  <p className="medida-lectura mt-2 text-sm text-ink-soft">
-                    {historia.resumen}
-                  </p>
-                </Tarjeta>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
       {/* CTA final */}
       <section
-        className="superficie-oscura bg-brand-coral"
+        className="superficie-oscura franja-cierre"
         aria-labelledby="cta-titulo"
       >
-        <div className="mx-auto max-w-6xl px-4 py-14 text-center">
+        <div className="mx-auto max-w-3xl px-4 py-14 text-center sm:py-20">
           <h2
             id="cta-titulo"
-            className="font-heading text-3xl font-bold text-brand-dark"
+            className="font-heading text-3xl font-semibold text-crema sm:text-4xl"
           >
-            Hay {sinPadrino} {sinPadrino === 1 ? "niño" : "niños"} esperando
-            acompañamiento
+            Hay {sinPadrino} {sinPadrino === 1 ? "niño" : "niños"} sin padrino
+            asignado
           </h2>
-          <p className="medida-lectura mx-auto mt-3 text-brand-dark/85">
-            Un aporte mensual sostiene sus terapias, su material adaptado y el
+          <p className="medida-lectura mx-auto mt-4 text-lg text-crema/80">
+            El aporte mensual cubre sus terapias, su material adaptado y el
             transporte de su familia.
           </p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <EnlaceBoton
               href="/inscripcion/padrino"
-              className="bg-brand-dark px-6 py-3 text-base hover:bg-ink"
+              className="bg-brand-yellow px-6 py-3 text-base text-brand-dark hover:bg-crema"
             >
-              <Users aria-hidden="true" className="size-4" />
-              Quiero ser padrino
+              Ser padrino
             </EnlaceBoton>
             <EnlaceBoton
               href="/donar"
               variante="contorno"
-              className="border-brand-dark px-6 py-3 text-base text-brand-dark"
+              className="border-crema/45 bg-transparent px-6 py-3 text-base text-crema hover:border-crema hover:bg-crema/10"
             >
               Hacer una donación
             </EnlaceBoton>

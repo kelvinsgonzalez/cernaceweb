@@ -24,7 +24,10 @@ export default async function EditarPage({
   await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
 
   const [beneficiario, programas] = await Promise.all([
-    prisma.beneficiario.findUnique({ where: { id } }),
+    prisma.beneficiario.findUnique({
+      where: { id },
+      include: { encargado: true },
+    }),
     prisma.programa.findMany({
       orderBy: { nombre: "asc" },
       select: { id: true, nombre: true },
@@ -54,6 +57,8 @@ export default async function EditarPage({
           programas={programas}
           valores={{
             id: beneficiario.id,
+            codigoExpediente: beneficiario.codigoExpediente,
+            fechaIngreso: fechaParaInput(beneficiario.fechaIngreso),
             nombres: beneficiario.nombres,
             apellidos: beneficiario.apellidos,
             fechaNacimiento: fechaParaInput(beneficiario.fechaNacimiento),
@@ -66,15 +71,29 @@ export default async function EditarPage({
             municipio: beneficiario.municipio,
             departamento: beneficiario.departamento,
             zonaResidencia: beneficiario.zonaResidencia ?? "",
-            encargadoNombre: beneficiario.encargadoNombre,
-            encargadoParentesco: beneficiario.encargadoParentesco,
-            encargadoTelefono: beneficiario.encargadoTelefono,
-            encargadoEmail: beneficiario.encargadoEmail ?? "",
+            sector: beneficiario.sector ?? "",
+            escolaridad: beneficiario.escolaridad ?? "",
+            telefono: beneficiario.telefono ?? "",
+            encargadoNombre: beneficiario.encargado?.nombre ?? "",
+            encargadoParentesco: beneficiario.encargado?.parentesco ?? "",
+            encargadoTelefono: beneficiario.encargado?.telefono ?? "",
+            encargadoEmail: beneficiario.encargado?.email ?? "",
+            encargadoSexo: beneficiario.encargado?.sexo ?? "",
+            encargadoEdad: beneficiario.encargado?.edad?.toString() ?? "",
+            encargadoIdentificacion:
+              beneficiario.encargado?.noIdentificacion ?? "",
+            encargadoEstadoCivil: beneficiario.encargado?.estadoCivil ?? "",
+            encargadoSituacionLaboral:
+              beneficiario.encargado?.situacionLaboral ?? "",
+            encargadoEscolaridad: beneficiario.encargado?.escolaridad ?? "",
+            encargadoOficio: beneficiario.encargado?.oficio ?? "",
+            encargadoIntegrantes:
+              beneficiario.encargado?.integrantesFamilia?.toString() ?? "",
+            encargadoDireccion: beneficiario.encargado?.direccion ?? "",
             programaId: beneficiario.programaId,
+            solicitaPatrocinio: beneficiario.solicitaPatrocinio,
             estado: beneficiario.estado,
             estadoExpediente: beneficiario.estadoExpediente,
-            publicadoEnGaleria: beneficiario.publicadoEnGaleria,
-            resumenPublico: beneficiario.resumenPublico ?? "",
           }}
         />
       </Tarjeta>

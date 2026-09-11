@@ -46,7 +46,7 @@ export default async function PortalPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="font-heading text-3xl font-bold text-ink">
+      <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
         Hola, {usuario.nombre.split(" ")[0]}
       </h1>
       <p className="medida-lectura mt-2 text-ink-soft">

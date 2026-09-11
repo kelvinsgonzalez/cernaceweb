@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Activity,
   FolderOpen,
   HandCoins,
   Inbox,
@@ -24,12 +25,14 @@ export default async function PanelPage() {
   const usuario = await requireSesion();
   const puedeVerDonaciones = tienePermiso(usuario, PERMISOS.DONACIONES_LEER);
   const puedeVerAuditoria = tienePermiso(usuario, PERMISOS.AUDITORIA_LEER);
+  const puedeVerSolicitudes = tienePermiso(usuario, PERMISOS.SOLICITUDES_ATENDER);
 
   const [
     totalBeneficiarios,
     conPadrino,
     incompletos,
     solicitudesNuevas,
+    casosAsignados,
     ultimosAvances,
   ] = await Promise.all([
     prisma.beneficiario.count({ where: { estado: "ACTIVO" } }),
@@ -39,7 +42,13 @@ export default async function PanelPage() {
     prisma.beneficiario.count({
       where: { estado: "ACTIVO", estadoExpediente: { not: "COMPLETO" } },
     }),
-    prisma.supportRequest.count({ where: { estado: "NUEVA" } }),
+    // Solo se consulta la bandeja pública si el rol la atiende.
+    puedeVerSolicitudes
+      ? prisma.supportRequest.count({ where: { estado: "NUEVA" } })
+      : 0,
+    prisma.asignacionTerapeuta.count({
+      where: { terapeutaId: usuario.id, activo: true },
+    }),
     prisma.seguimiento.findMany({
       orderBy: { fecha: "desc" },
       take: 5,
@@ -93,11 +102,17 @@ export default async function PanelPage() {
             valor={formatQuetzales(aNumero(recaudado?._sum.monto ?? 0))}
             icono={<HandCoins className="size-5" />}
           />
-        ) : (
+        ) : puedeVerSolicitudes ? (
           <Kpi
             etiqueta="Solicitudes nuevas"
             valor={solicitudesNuevas}
             icono={<Inbox className="size-5" />}
+          />
+        ) : (
+          <Kpi
+            etiqueta="Casos a mi cargo"
+            valor={casosAsignados}
+            icono={<Activity className="size-5" />}
           />
         )}
       </div>
@@ -168,7 +183,7 @@ export default async function PanelPage() {
               </Link>
             </div>
           </Tarjeta>
-        ) : (
+        ) : puedeVerSolicitudes ? (
           <Tarjeta>
             <TarjetaCabecera
               titulo="Pendientes de atender"
@@ -186,6 +201,27 @@ export default async function PanelPage() {
                 className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline"
               >
                 Ir a solicitudes
+              </Link>
+            </div>
+          </Tarjeta>
+        ) : (
+          <Tarjeta>
+            <TarjetaCabecera
+              titulo="Mis casos de terapia"
+              descripcion="Los beneficiarios que tienes asignados."
+            />
+            <div className="px-5 py-6">
+              <p className="text-sm text-ink">
+                {casosAsignados}{" "}
+                {casosAsignados === 1
+                  ? "caso asignado a tu nombre"
+                  : "casos asignados a tu nombre"}
+              </p>
+              <Link
+                href="/admin/terapia"
+                className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline"
+              >
+                Ir a terapia
               </Link>
             </div>
           </Tarjeta>
