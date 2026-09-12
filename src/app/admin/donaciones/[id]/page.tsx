@@ -14,9 +14,14 @@ import {
   TarjetaCabecera,
 } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
-import { formatFecha, formatFechaHora, formatQuetzales } from "@/lib/fechas";
+import {
+  formatFecha,
+  formatFechaHora,
+  formatMontoOpcional,
+} from "@/lib/fechas";
 import { etiquetaMetodo, requiereBoleta } from "@/lib/pasarela";
-import { aNumero, formatTamano } from "@/lib/utils";
+import { esFotoIphone } from "@/lib/almacenamiento";
+import { formatTamano } from "@/lib/utils";
 import { reabrirDonacion, verificarDonacion } from "../acciones";
 
 export const metadata: Metadata = { title: "Donación" };
@@ -25,10 +30,13 @@ export const dynamic = "force-dynamic";
 
 export default async function DonacionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ falta?: string }>;
 }) {
   const { id } = await params;
+  const { falta } = await searchParams;
   await requirePermiso(PERMISOS.DONACIONES_LEER);
   const usuario = await usuarioActual();
   const puedeVerificar = tienePermiso(usuario, PERMISOS.DONACIONES_GESTIONAR);
@@ -45,7 +53,13 @@ export default async function DonacionPage({
 
   const porBanco = requiereBoleta(donacion.metodo);
   const pendiente = donacion.estado === "PENDIENTE";
-  const esImagen = (donacion.boletaTipoMime ?? "").startsWith("image/");
+  // Un HEIC del iPhone es una imagen, pero solo Safari la pinta: se trata como
+  // el PDF y se ofrece abrirla en vez de incrustarla rota.
+  const tipoBoleta = donacion.boletaTipoMime ?? "";
+  const esImagen = tipoBoleta.startsWith("image/") && !esFotoIphone(tipoBoleta);
+  const datosDeBoleta = Boolean(
+    donacion.boletaBanco || donacion.boletaNumero || donacion.boletaFecha,
+  );
   const urlBoleta = `/api/boletas/${donacion.id}`;
 
   return (
@@ -60,7 +74,11 @@ export default async function DonacionPage({
 
       <EncabezadoPagina
         titulo={donacion.referenciaPasarela}
-        descripcion={`${donacion.donanteNombre} · ${formatQuetzales(aNumero(donacion.monto))} ${donacion.moneda} · ${etiquetaMetodo(donacion.metodo)}`}
+        descripcion={[
+          donacion.donanteNombre ?? "Donativo sin identificar",
+          formatMontoOpcional(donacion.monto),
+          etiquetaMetodo(donacion.metodo),
+        ].join(" · ")}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -74,14 +92,31 @@ export default async function DonacionPage({
               {formatFechaHora(donacion.createdAt)}
             </Campo>
             <Campo etiqueta="Monto">
-              {formatQuetzales(aNumero(donacion.monto))} {donacion.moneda}
+              {donacion.monto === null ? (
+                <span className="text-ink-soft">
+                  Sin anotar — léelo en la boleta
+                </span>
+              ) : (
+                `${formatMontoOpcional(donacion.monto)} ${donacion.moneda}`
+              )}
             </Campo>
             <Campo etiqueta="Frecuencia">
               {donacion.recurrente ? "Mensual" : "Aporte único"}
             </Campo>
-            <Campo etiqueta="Donante">{donacion.donanteNombre}</Campo>
-            <Campo etiqueta="Correo">{donacion.donanteEmail}</Campo>
-            <Campo etiqueta="Destino">
+            <Campo etiqueta="Donante">
+              {donacion.donanteNombre ?? (
+                <span className="text-ink-soft">Sin identificar</span>
+              )}
+            </Campo>
+            <Campo etiqueta="Correo">
+              {donacion.donanteEmail ?? (
+                <span className="text-ink-soft">—</span>
+              )}
+            </Campo>
+            <Campo etiqueta="Niño indicado por el donante">
+              {donacion.destinoNino ?? <span className="text-ink-soft">—</span>}
+            </Campo>
+            <Campo etiqueta="Campaña">
               {donacion.campaign?.titulo ?? "Donde más se necesite"}
             </Campo>
             <Campo etiqueta="Padrino">
@@ -126,13 +161,19 @@ export default async function DonacionPage({
           {donacion.boletaArchivo ? (
             <div className="p-5">
               <dl className="grid gap-5 sm:grid-cols-2">
-                <Campo etiqueta="Banco">{donacion.boletaBanco ?? "—"}</Campo>
-                <Campo etiqueta="Número de boleta">
-                  {donacion.boletaNumero ?? "—"}
-                </Campo>
-                <Campo etiqueta="Fecha del depósito">
-                  {formatFecha(donacion.boletaFecha)}
-                </Campo>
+                {/* Banco, número y fecha ya no se piden al donar: están en la
+                    imagen. Solo los traen los aportes registrados antes. */}
+                {datosDeBoleta ? (
+                  <>
+                    <Campo etiqueta="Banco">{donacion.boletaBanco ?? "—"}</Campo>
+                    <Campo etiqueta="Número de boleta">
+                      {donacion.boletaNumero ?? "—"}
+                    </Campo>
+                    <Campo etiqueta="Fecha del depósito">
+                      {formatFecha(donacion.boletaFecha)}
+                    </Campo>
+                  </>
+                ) : null}
                 <Campo etiqueta="Subida">
                   {formatFechaHora(donacion.boletaSubidaEn)}
                   <span className="block text-xs text-ink-soft">
@@ -146,7 +187,7 @@ export default async function DonacionPage({
                   <a href={urlBoleta} target="_blank" rel="noopener">
                     <Image
                       src={urlBoleta}
-                      alt={`Boleta ${donacion.boletaNumero ?? ""} de ${donacion.boletaBanco ?? "el banco"}`}
+                      alt={`Boleta del aporte ${donacion.referenciaPasarela}`}
                       width={900}
                       height={1200}
                       unoptimized
@@ -156,7 +197,9 @@ export default async function DonacionPage({
                 ) : (
                   <p className="flex items-center gap-2 p-3 text-sm text-ink-soft">
                     <FileText aria-hidden="true" className="size-5 shrink-0" />
-                    El comprobante llegó en PDF. Ábrelo para revisarlo.
+                    {esFotoIphone(tipoBoleta)
+                      ? "El comprobante llegó como foto HEIC de iPhone. Ábrela para revisarla."
+                      : "El comprobante llegó en PDF. Ábrelo para revisarlo."}
                   </p>
                 )}
               </div>
@@ -180,7 +223,7 @@ export default async function DonacionPage({
           ) : (
             <p className="medida-lectura p-5 text-sm text-ink-soft">
               {porBanco
-                ? "El donante todavía no ha subido su boleta. Puede hacerlo desde el enlace del comprobante que vio al terminar."
+                ? "Este aporte se registró sin boleta. Los donativos que entran por el sitio siempre la traen, así que probablemente se anotó a mano."
                 : "Este aporte se cobró con tarjeta a través de la pasarela: no lleva boleta."}
             </p>
           )}
@@ -202,6 +245,44 @@ export default async function DonacionPage({
                   lo rechazas, la nota que escribas aquí es la que verá el
                   donante en su comprobante.
                 </p>
+                {falta === "monto" ? (
+                  <p
+                    role="alert"
+                    className="rounded-[var(--radius-sm)] bg-bad-bg px-4 py-3 text-sm font-medium text-bad-fg"
+                  >
+                    Escribe el monto de la boleta antes de dar el aporte por
+                    bueno.
+                  </p>
+                ) : null}
+                {donacion.monto === null ? (
+                  // El donativo directo llega sin monto: quien deposita no lo
+                  // declara. Sin anotarlo aquí, el aporte sumaría cero al total.
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="monto"
+                      className="text-sm font-semibold text-ink"
+                    >
+                      Monto de la boleta
+                      <span className="ml-1 text-danger" aria-hidden="true">
+                        *
+                      </span>
+                      <span className="visually-hidden">(obligatorio)</span>
+                    </label>
+                    <p id="monto-ayuda" className="text-xs text-ink-soft">
+                      En quetzales, tal como aparece en el comprobante. Hace
+                      falta para aprobar el aporte.
+                    </p>
+                    <input
+                      id="monto"
+                      name="monto"
+                      type="number"
+                      min={1}
+                      step="0.01"
+                      aria-describedby="monto-ayuda"
+                      className="max-w-xs rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink"
+                    />
+                  </div>
+                ) : null}
                 <div className="flex flex-col gap-1.5">
                   <label
                     htmlFor="notaVerificacion"

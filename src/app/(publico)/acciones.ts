@@ -3,18 +3,18 @@
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { pasarela, requiereBoleta } from "@/lib/pasarela";
+import { METODO_DEPOSITO, pasarela, requiereBoleta } from "@/lib/pasarela";
 import { registrarAuditoria } from "@/lib/sesion";
 import { ROLES } from "@/lib/rbac";
 import { fechaDesdeInput } from "@/lib/fechas";
-import { borrarBoleta, guardarBoleta, validarBoleta } from "@/lib/almacenamiento";
+import { guardarBoleta, validarBoleta } from "@/lib/almacenamiento";
 import {
   erroresDeZod,
-  esquemaBoleta,
   esquemaContacto,
-  esquemaDonacion,
+  esquemaDonativoDirecto,
   esquemaInscripcionBeneficiario,
   esquemaInscripcionPadrino,
+  esquemaPasarela,
   type EstadoFormulario,
 } from "@/lib/formularios";
 
@@ -192,12 +192,15 @@ export async function enviarContacto(
   return { ok: "Mensaje enviado. Te responderemos al correo que indicaste." };
 }
 
-/** Crea la donación en PENDIENTE con la referencia de la pasarela. */
+/**
+ * Pago en línea. La donación nace en PENDIENTE con la referencia de la
+ * pasarela y sin ningún dato del donante: lo único que se pidió fue el monto.
+ */
 export async function iniciarDonacion(
   _estado: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const parseo = esquemaDonacion.safeParse(Object.fromEntries(datos));
+  const parseo = esquemaPasarela.safeParse(Object.fromEntries(datos));
   if (!parseo.success) {
     return {
       error: "Revisa los campos marcados.",
@@ -209,27 +212,22 @@ export async function iniciarDonacion(
   const intencion = await pasarela.crearIntencion({
     monto: Number(v.monto),
     moneda: "GTQ",
-    metodo: v.metodo,
-    descripcion: `Donación de ${v.donanteNombre}`,
+    metodo: "TARJETA",
+    descripcion: "Donación en línea",
   });
 
   const donacion = await prisma.donacion.create({
     data: {
-      donanteNombre: v.donanteNombre,
-      donanteEmail: v.donanteEmail,
-      campaignId: v.campaignId || null,
       monto: v.monto,
       moneda: intencion.moneda,
-      metodo: v.metodo,
+      metodo: "TARJETA",
       estado: "PENDIENTE",
       referenciaPasarela: intencion.referencia,
-      recurrente: v.recurrente === "on",
-      mensaje: v.mensaje || null,
     },
   });
 
   await registrarAuditoria({
-    actor: v.donanteEmail,
+    actor: "sitio-publico",
     accion: "CREAR",
     entidad: "Donacion",
     entidadId: donacion.id,
@@ -246,9 +244,9 @@ export async function confirmarDonacion(datos: FormData) {
   const donacion = await prisma.donacion.findUnique({ where: { id } });
   if (!donacion) redirect("/donar");
 
-  // Una transferencia no la aprueba la pasarela: la aprueba quien coteja la
-  // boleta contra el estado de cuenta, desde el panel.
-  if (requiereBoleta(donacion.metodo)) redirect(`/donar/pagar/${donacion.id}`);
+  // Un depósito no lo aprueba la pasarela: lo aprueba quien coteja la boleta
+  // contra el estado de cuenta, desde el panel.
+  if (requiereBoleta(donacion.metodo)) redirect(`/donar/gracias/${donacion.id}`);
   if (donacion.estado !== "PENDIENTE") redirect(`/donar/gracias/${donacion.id}`);
 
   const resultado = await pasarela.confirmar(
@@ -262,7 +260,7 @@ export async function confirmarDonacion(datos: FormData) {
   });
 
   await registrarAuditoria({
-    actor: donacion.donanteEmail,
+    actor: "sitio-publico",
     accion: resultado.aprobado ? "PAGO_APROBADO" : "PAGO_RECHAZADO",
     entidad: "Donacion",
     entidadId: donacion.id,
@@ -273,19 +271,19 @@ export async function confirmarDonacion(datos: FormData) {
 }
 
 /**
- * Adjunta la boleta de una transferencia o un depósito. La donación sigue
- * PENDIENTE: el dinero no está confirmado hasta que alguien del equipo coteja
- * la boleta contra el estado de cuenta desde /admin/donaciones.
+ * Donativo depositado en el banco. A diferencia del pago en línea, aquí la
+ * boleta llega en el mismo paso que crea la donación: quien deposita no tiene
+ * que dejar nombre ni correo ni volver después a adjuntar nada.
  *
- * Se puede volver a subir mientras siga pendiente —una boleta borrosa o del
- * depósito equivocado se corrige sin abrir otra donación— y la anterior se
- * borra del disco para no dejar archivos sueltos.
+ * Queda PENDIENTE y sin monto. El dinero no está confirmado hasta que alguien
+ * del equipo coteja la boleta contra el estado de cuenta desde
+ * /admin/donaciones, y es ahí donde se anota cuánto fue.
  */
-export async function subirBoleta(
+export async function registrarDonativoDirecto(
   _estado: EstadoFormulario,
   datos: FormData,
 ): Promise<EstadoFormulario> {
-  const parseo = esquemaBoleta.safeParse(Object.fromEntries(datos));
+  const parseo = esquemaDonativoDirecto.safeParse(Object.fromEntries(datos));
   if (!parseo.success) {
     return {
       error: "Revisa los campos marcados.",
@@ -293,74 +291,49 @@ export async function subirBoleta(
     };
   }
 
-  const v = parseo.data;
-  const donacion = await prisma.donacion.findUnique({
-    where: { id: v.donacionId },
-    select: {
-      id: true,
-      estado: true,
-      metodo: true,
-      boletaArchivo: true,
-      referenciaPasarela: true,
-      donanteEmail: true,
-    },
-  });
-
-  if (!donacion || !requiereBoleta(donacion.metodo)) {
-    return { error: "Esa donación ya no admite boleta." };
-  }
-  if (donacion.estado !== "PENDIENTE") {
-    return {
-      error: "Esta donación ya fue revisada por el equipo; no admite otra boleta.",
-    };
-  }
-
-  const fecha = fechaDesdeInput(v.boletaFecha);
-  const manana = new Date();
-  manana.setHours(23, 59, 59, 999);
-  if (fecha > manana) {
-    return {
-      error: "Revisa los campos marcados.",
-      errores: { boletaFecha: "La fecha del depósito no puede ser futura." },
-    };
-  }
-
   const entrante = datos.get("boleta");
   if (!(entrante instanceof File) || entrante.size === 0) {
     return {
-      error: "Revisa los campos marcados.",
-      errores: { boleta: "Elige la foto o el PDF de la boleta." },
+      error: "Falta la boleta.",
+      errores: { boleta: "Elige la foto o el PDF de tu boleta." },
     };
   }
   const problema = validarBoleta(entrante);
   if (problema) {
-    return { error: "Revisa los campos marcados.", errores: { boleta: problema } };
+    return { error: "Revisa el archivo.", errores: { boleta: problema } };
   }
 
-  const guardado = await guardarBoleta(entrante);
-  const anterior = donacion.boletaArchivo;
+  const destino = parseo.data.destinoNino?.trim() || null;
+  const intencion = await pasarela.crearIntencion({
+    monto: 0,
+    moneda: "GTQ",
+    metodo: METODO_DEPOSITO,
+    descripcion: "Donativo depositado en el banco",
+  });
 
-  await prisma.donacion.update({
-    where: { id: donacion.id },
+  // El archivo se guarda antes de crear la fila: si el disco falla, no queda
+  // una donación apuntando a una boleta que no existe.
+  const guardado = await guardarBoleta(entrante);
+
+  const donacion = await prisma.donacion.create({
     data: {
+      metodo: METODO_DEPOSITO,
+      estado: "PENDIENTE",
+      referenciaPasarela: intencion.referencia,
+      destinoNino: destino,
       boletaArchivo: guardado.archivo,
       boletaTipoMime: guardado.tipoMime,
       boletaTamanoBytes: guardado.tamanoBytes,
-      boletaBanco: v.boletaBanco,
-      boletaNumero: v.boletaNumero,
-      boletaFecha: fecha,
       boletaSubidaEn: new Date(),
     },
   });
 
-  if (anterior) await borrarBoleta(anterior);
-
   await registrarAuditoria({
-    actor: donacion.donanteEmail,
-    accion: anterior ? "ACTUALIZAR" : "CREAR",
+    actor: "sitio-publico",
+    accion: "CREAR",
     entidad: "Donacion",
     entidadId: donacion.id,
-    detalle: `Boleta ${v.boletaNumero} de ${v.boletaBanco} ${anterior ? "reemplazada" : "adjuntada"} · referencia ${donacion.referenciaPasarela}`,
+    detalle: `Donativo directo con boleta adjunta · referencia ${donacion.referenciaPasarela}${destino ? ` · dirigido a ${destino}` : ""}`,
   });
 
   redirect(`/donar/gracias/${donacion.id}`);

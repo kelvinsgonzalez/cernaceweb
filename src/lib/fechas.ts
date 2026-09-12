@@ -72,3 +72,13 @@ export function formatQuetzales(monto: number | string): string {
     minimumFractionDigits: 2,
   }).format(numero);
 }
+
+/**
+ * Un monto que todavía no se conoce se dibuja como raya, no como Q0.00: el
+ * donativo depositado en el banco llega sin declararlo y lo anota el equipo al
+ * cotejar la boleta. Q0.00 haría creer que alguien donó cero.
+ */
+export function formatMontoOpcional(monto: unknown): string {
+  if (monto === null || monto === undefined) return "—";
+  return formatQuetzales(Number(monto.toString()));
+}

@@ -12,7 +12,11 @@ import {
   FilaVacia,
   Tabla,
 } from "@/components/admin/estructura";
-import { formatFechaHora, formatQuetzales } from "@/lib/fechas";
+import {
+  formatFechaHora,
+  formatMontoOpcional,
+  formatQuetzales,
+} from "@/lib/fechas";
 import { etiquetaMetodo, requiereBoleta } from "@/lib/pasarela";
 import { aNumero } from "@/lib/utils";
 
@@ -76,7 +80,7 @@ export default async function DonacionesPage({
     <>
       <EncabezadoPagina
         titulo="Donaciones"
-        descripcion="Los aportes con tarjeta los resuelve la pasarela; las transferencias y los depósitos llegan con boleta y hay que cotejarlos aquí."
+        descripcion="Los aportes con tarjeta los resuelve la pasarela. Los donativos depositados en el banco llegan sin identificar y con su boleta adjunta: hay que cotejarlos aquí y anotar de cuánto fueron."
       />
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -178,19 +182,42 @@ export default async function DonacionesPage({
                   {formatFechaHora(donacion.createdAt)}
                 </Celda>
                 <Celda>
-                  <span className="font-medium">{donacion.donanteNombre}</span>
-                  <span className="block text-xs text-ink-soft">
-                    {donacion.donanteEmail}
-                  </span>
+                  {/* Un donativo depositado en el banco llega sin identificar:
+                      quien deposita solo sube la boleta. */}
+                  {donacion.donanteNombre ? (
+                    <>
+                      <span className="font-medium">
+                        {donacion.donanteNombre}
+                      </span>
+                      {donacion.donanteEmail ? (
+                        <span className="block text-xs text-ink-soft">
+                          {donacion.donanteEmail}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <span className="text-ink-soft">Sin identificar</span>
+                  )}
                 </Celda>
                 <Celda className="whitespace-nowrap">
-                  {formatQuetzales(aNumero(donacion.monto))}
+                  {formatMontoOpcional(donacion.monto)}
                   {donacion.recurrente ? (
                     <span className="block text-xs text-ink-soft">Mensual</span>
                   ) : null}
                 </Celda>
                 <Celda>{etiquetaMetodo(donacion.metodo)}</Celda>
-                <Celda>{donacion.campaign?.titulo ?? "Donde más se necesite"}</Celda>
+                <Celda>
+                  {donacion.destinoNino ? (
+                    <>
+                      <span className="font-medium">{donacion.destinoNino}</span>
+                      <span className="block text-xs text-ink-soft">
+                        Niño indicado por el donante
+                      </span>
+                    </>
+                  ) : (
+                    (donacion.campaign?.titulo ?? "Donde más se necesite")
+                  )}
+                </Celda>
                 <Celda>
                   {donacion.boletaArchivo ? (
                     <Link

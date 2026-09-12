@@ -105,12 +105,13 @@ Cámbialas antes de cualquier despliegue real.
 | 1 | Sitio web institucional informativo | `/`, `/contacto` | Misión, programas, historias y contacto, todo leído de la base |
 | 2 | Expedientes digitalizados y centralizados, con usuarios, roles y respaldo | `/admin/beneficiarios`, `/admin/beneficiarios/[id]`, `/admin/usuarios`, `/admin/auditoria` | Expediente con datos generales, clínico, socioeconómico, documentos, avances y bitácora |
 | 3 | Seguimiento con permisos para personal y padrinos | `/admin/beneficiarios/[id]/avance` y `/portal/[id]` | La casilla «visible para el padrino» decide qué se comparte |
-| 4 | Pasarela de pago para donaciones | `/donar` → `/donar/pagar/[id]` → `/donar/gracias/[id]` | Modo prueba; nunca se piden datos de tarjeta |
-| 5 | Formulario de inscripción de beneficiarios | `/inscripcion/beneficiario` → `/admin/solicitudes` | |
-| 6 | Formulario de inscripción de padrinos | `/inscripcion/padrino` → `/admin/voluntarios` | |
-| 7 | Página pública de beneficiarios sin apoyo asignado | `/apadrina`, `/apadrina/[id]` | Solo primer nombre, edad y programa |
-| 8 | Panel de administrador | `/admin` y sus 16 secciones | |
-| 9 | Landing page institucional | `/` | Cifras, programas e historias reales de la base |
+| 4 | Donativo depositado en el banco | `/donar` → `/donar/deposito` → `/donar/gracias/[id]` | Sin nombre ni correo: la cuenta, la boleta y a qué niño va dirigido |
+| 5 | Pasarela de pago para donaciones | `/donar` → `/donar/pagar` → `/donar/pagar/[id]` → `/donar/gracias/[id]` | Modo prueba; solo se pide el monto y nunca datos de tarjeta |
+| 6 | Formulario de inscripción de beneficiarios | `/inscripcion/beneficiario` → `/admin/solicitudes` | |
+| 7 | Formulario de inscripción de padrinos | `/inscripcion/padrino` → `/admin/voluntarios` | |
+| 8 | Página pública de beneficiarios sin apoyo asignado | `/apadrina`, `/apadrina/[id]` | Solo primer nombre, edad y programa |
+| 9 | Panel de administrador | `/admin` y sus 16 secciones | |
+| 10 | Landing page institucional | `/` | Cifras, programas e historias reales de la base |
 
 ---
 
@@ -156,6 +157,10 @@ corriendo (no por inspección del código):
 - El flujo de donación llega al comprobante con su referencia, monto y estado, y
   la transacción queda registrada en `/admin/auditoria` (acción
   `PAGO_APROBADO`). El camino de rechazo también funciona.
+- Un donativo depositado en el banco se sube sin identificarse y llega a
+  `/admin/donaciones` como pendiente, sin donante y sin monto: el equipo lee el
+  monto de la boleta y lo anota al darlo por bueno, y hasta entonces no suma en
+  el total recaudado.
 - Una inscripción enviada desde el formulario público aparece en
   `/admin/solicitudes`; una inscripción de padrino, en `/admin/voluntarios`.
 - Una fecha de nacimiento del 14/03/2018 se muestra como **14/03/2018**, no como

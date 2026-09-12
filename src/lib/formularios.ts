@@ -77,33 +77,30 @@ export const esquemaContacto = z.object({
   mensaje: texto(10, "Cuéntanos un poco más (al menos 10 caracteres)."),
 });
 
-export const esquemaDonacion = z.object({
-  donanteNombre: texto(3, "Escribe tu nombre."),
-  donanteEmail: z.email("Escribe un correo válido."),
+/**
+ * Pago en línea: lo único que se le pide al donante es cuánto quiere aportar.
+ * Ni nombre ni correo: los datos de la tarjeta y del titular los resuelve la
+ * pasarela, y aquí no se guarda ninguno.
+ */
+export const esquemaPasarela = z.object({
   monto: z
     .string()
     .trim()
     .refine((v) => Number(v) >= 25, { message: "El monto mínimo es de Q25." }),
-  metodo: z.enum(["TARJETA", "TRANSFERENCIA", "DEPOSITO"], {
-    message: "Selecciona un método de pago.",
-  }),
-  campaignId: z.string().trim().optional(),
-  recurrente: z.string().optional(),
-  mensaje: z.string().trim().optional(),
 });
 
 /**
- * Boleta de transferencia o depósito. El archivo no pasa por Zod —se valida
- * aparte con `validarBoleta`—, aquí solo van los datos que el equipo necesita
- * para cotejarla contra el estado de cuenta.
+ * Donativo depositado en el banco. Es el camino más corto que hay: la boleta y,
+ * si el donante quiere, a qué niño va dirigida. El archivo no pasa por Zod —se
+ * valida aparte con `validarBoleta`—. El monto y los datos de la boleta los
+ * anota el equipo al cotejarla, porque están en la imagen que se sube.
  */
-export const esquemaBoleta = z.object({
-  donacionId: z.string().min(1),
-  boletaBanco: texto(2, "Escribe el banco donde hiciste el depósito."),
-  boletaNumero: texto(3, "Escribe el número de la boleta o de la transacción."),
-  boletaFecha: z
+export const esquemaDonativoDirecto = z.object({
+  destinoNino: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Selecciona la fecha del depósito."),
+    .trim()
+    .max(120, "El código o el nombre no puede pasar de 120 caracteres.")
+    .optional(),
 });
 
 /** Verificación de una boleta desde el panel. */

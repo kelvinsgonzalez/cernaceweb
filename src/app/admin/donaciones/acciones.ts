@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
@@ -46,10 +47,23 @@ export async function verificarDonacion(datos: FormData) {
   if (!donacion) redirect("/admin/donaciones");
   if (donacion.estado !== "PENDIENTE") redirect(`/admin/donaciones/${id}`);
 
+  // Un donativo depositado en el banco llega sin monto: quien deposita no lo
+  // declara. Aprobarlo sin anotarlo lo haría sumar cero al total recaudado, así
+  // que se pide aquí. Al rechazar no hace falta: el aporte no suma.
+  let monto = donacion.monto;
+  if (aprobar && monto === null) {
+    const escrito = Number(String(datos.get("monto") ?? "").trim());
+    if (!Number.isFinite(escrito) || escrito <= 0) {
+      redirect(`/admin/donaciones/${id}?falta=monto`);
+    }
+    monto = new Prisma.Decimal(escrito.toFixed(2));
+  }
+
   await prisma.donacion.update({
     where: { id },
     data: {
       estado: aprobar ? "COMPLETADA" : "FALLIDA",
+      monto,
       verificadaPor: usuario.nombre,
       verificadaEn: new Date(),
       notaVerificacion: nota || null,
@@ -61,7 +75,7 @@ export async function verificarDonacion(datos: FormData) {
     accion: aprobar ? "PAGO_APROBADO" : "PAGO_RECHAZADO",
     entidad: "Donacion",
     entidadId: id,
-    detalle: `Donación de ${donacion.donanteNombre} por ${formatQuetzales(aNumero(donacion.monto))} ${aprobar ? "verificada" : "rechazada"} · referencia ${donacion.referenciaPasarela}${nota ? ` · ${nota}` : ""}`,
+    detalle: `Donación de ${donacion.donanteNombre ?? "donante sin identificar"} por ${formatQuetzales(aNumero(monto))} ${aprobar ? "verificada" : "rechazada"} · referencia ${donacion.referenciaPasarela}${nota ? ` · ${nota}` : ""}`,
   });
 
   refrescar(id);

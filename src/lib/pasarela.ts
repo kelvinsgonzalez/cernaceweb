@@ -69,11 +69,19 @@ class PasarelaSimulada implements Pasarela {
 
 export const pasarela: Pasarela = new PasarelaSimulada();
 
+/**
+ * Catálogo de etiquetas, no un menú: el sitio ya no pregunta el método. Quien
+ * paga en línea entra por TARJETA y quien deposita en el banco por DEPOSITO.
+ * TRANSFERENCIA sigue aquí porque hay aportes antiguos registrados así.
+ */
 export const METODOS_PAGO = [
   { valor: "TARJETA", etiqueta: "Tarjeta de crédito o débito" },
   { valor: "TRANSFERENCIA", etiqueta: "Transferencia bancaria" },
-  { valor: "DEPOSITO", etiqueta: "Depósito en agencia" },
+  { valor: "DEPOSITO", etiqueta: "Depósito o transferencia" },
 ] as const;
+
+/** Método con el que se registra un donativo depositado en el banco. */
+export const METODO_DEPOSITO = "DEPOSITO";
 
 export function etiquetaMetodo(valor: string): string {
   return METODOS_PAGO.find((m) => m.valor === valor)?.etiqueta ?? valor;
@@ -92,18 +100,28 @@ export function requiereBoleta(metodo: string): boolean {
   );
 }
 
-/** Claves de configuración con la cuenta a la que se deposita. */
+/**
+ * Claves de configuración con las dos cuentas a las que se deposita: la de
+ * quetzales en Guatemala y la de dólares en Estados Unidos.
+ */
 export const CLAVES_CUENTA = [
   "donaciones.banco",
   "donaciones.cuentaNumero",
   "donaciones.cuentaTipo",
   "donaciones.cuentaTitular",
+  "donaciones.bancoDolares",
+  "donaciones.cuentaDolaresNumero",
+  "donaciones.cuentaDolaresTitular",
 ] as const;
 
-/** Se usan si la configuración todavía no trae la cuenta. */
+/** Se usan si la configuración todavía no trae las cuentas. */
 export const CUENTA_PREDETERMINADA: Record<string, string> = {
-  "donaciones.banco": "Banrural",
-  "donaciones.cuentaNumero": "3-000-00000-0",
+  "donaciones.banco": "Banco Banrural Guatemala",
+  "donaciones.cuentaNumero": "353105163",
   "donaciones.cuentaTipo": "Monetaria",
-  "donaciones.cuentaTitular": "Asociación CERNACE",
+  "donaciones.cuentaTitular":
+    "Asociación Unidos para Ayudar al Desarrollo Integral de los Pueblos",
+  "donaciones.bancoDolares": "Chase Bank, Estados Unidos",
+  "donaciones.cuentaDolaresNumero": "643788912",
+  "donaciones.cuentaDolaresTitular": "Isaías Gálvez",
 };

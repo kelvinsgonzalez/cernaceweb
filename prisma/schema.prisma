@@ -541,11 +541,19 @@ model Padrinazgo {
 
 model Donacion {
   id                 String         @id @default(cuid())
-  donanteNombre      String
-  donanteEmail       String
+  // Opcionales: el donativo directo se sube sin identificarse. Solo los
+  // aportes que pasan por la pasarela o que registra el equipo traen donante.
+  donanteNombre      String?
+  donanteEmail       String?
   padrinoId          String?
   campaignId         String?
-  monto              Decimal        @db.Decimal(10, 2)
+  // Texto libre con el código o el nombre del niño al que el donante dirige
+  // su aporte. No es una relación: el donante escribe lo que recuerda y el
+  // equipo lo empareja a mano con el expediente.
+  destinoNino        String?
+  // Nulo mientras no se sepa: el donativo directo llega sin monto y lo anota
+  // el equipo al cotejar la boleta contra el estado de cuenta.
+  monto              Decimal?       @db.Decimal(10, 2)
   moneda             String         @default("GTQ")
   metodo             String
   estado             EstadoDonacion @default(PENDIENTE)

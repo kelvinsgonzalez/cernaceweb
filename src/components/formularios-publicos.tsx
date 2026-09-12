@@ -352,16 +352,18 @@ export function FormularioContacto({ accion }: { accion: Accion }) {
 }
 
 /* -------------------------------------------------------------------------
-   Donación
+   Pago en línea
    ------------------------------------------------------------------------- */
 
-export function FormularioDonacion({
+/**
+ * Lo único que se pregunta es cuánto. Nombre, correo y datos de la tarjeta son
+ * asunto de la pasarela, y este sitio no los guarda.
+ */
+export function FormularioPasarela({
   accion,
-  campanas,
   montoSugerido,
 }: {
   accion: Accion;
-  campanas: { id: string; titulo: string }[];
   montoSugerido: string;
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
@@ -371,86 +373,18 @@ export function FormularioDonacion({
     <form action={enviar} className="flex flex-col gap-5" noValidate>
       <Mensajes estado={estado} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <CampoTexto
-          id="donanteNombre"
-          name="donanteNombre"
-          etiqueta="Nombre"
-          requerido
-          error={e.donanteNombre}
-          autoComplete="name"
-        />
-        <CampoTexto
-          id="donanteEmail"
-          name="donanteEmail"
-          type="email"
-          etiqueta="Correo electrónico"
-          ayuda="Ahí te llegará el comprobante de la donación."
-          requerido
-          error={e.donanteEmail}
-          autoComplete="email"
-        />
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <CampoTexto
-          id="monto"
-          name="monto"
-          type="number"
-          min={25}
-          step={25}
-          etiqueta="Monto en quetzales"
-          requerido
-          defaultValue={montoSugerido}
-          error={e.monto}
-        />
-        <CampoSelect
-          id="metodo"
-          name="metodo"
-          etiqueta="Método de pago"
-          ayuda="Con transferencia o depósito, en el siguiente paso verás la cuenta y podrás subir tu boleta."
-          requerido
-          error={e.metodo}
-          defaultValue="TARJETA"
-        >
-          <option value="TARJETA">Tarjeta de crédito o débito</option>
-          <option value="TRANSFERENCIA">Transferencia bancaria</option>
-          <option value="DEPOSITO">Depósito en agencia</option>
-        </CampoSelect>
-      </div>
-
-      <CampoSelect
-        id="campaignId"
-        name="campaignId"
-        etiqueta="Destinar a una campaña"
-        defaultValue=""
-      >
-        <option value="">Donde más se necesite</option>
-        {campanas.map((campana) => (
-          <option key={campana.id} value={campana.id}>
-            {campana.titulo}
-          </option>
-        ))}
-      </CampoSelect>
-
-      <div className="flex items-start gap-3">
-        <input
-          id="recurrente"
-          name="recurrente"
-          type="checkbox"
-          className="mt-1 size-4 rounded border-line"
-        />
-        <label htmlFor="recurrente" className="text-sm text-ink">
-          Quiero que este aporte se repita cada mes
-        </label>
-      </div>
-
-      <CampoArea
-        id="mensaje"
-        name="mensaje"
-        etiqueta="Mensaje para el equipo (opcional)"
-        rows={3}
-        error={e.mensaje}
+      <CampoTexto
+        id="monto"
+        name="monto"
+        type="number"
+        min={25}
+        step={25}
+        etiqueta="¿Cuánto quieres aportar?"
+        ayuda="En quetzales. El mínimo es de Q25."
+        requerido
+        defaultValue={montoSugerido}
+        error={e.monto}
+        className="max-w-xs"
       />
 
       <div>
@@ -463,88 +397,58 @@ export function FormularioDonacion({
 }
 
 /* -------------------------------------------------------------------------
-   Boleta de transferencia o depósito
+   Donativo depositado en el banco
    ------------------------------------------------------------------------- */
 
 /**
- * Lo que sube el donante cuando pagó por el banco. No confirma la donación:
- * la deja pendiente de que el equipo coteje la boleta.
+ * El camino más corto: la boleta y, si el donante quiere, a qué niño va
+ * dirigida. Ni nombre, ni correo, ni monto. No confirma nada: deja el donativo
+ * pendiente de que el equipo coteje la boleta contra el estado de cuenta.
  */
-export function FormularioBoleta({
+export function FormularioDonativoDirecto({
   accion,
-  donacionId,
   tamanoMaximoMb,
-  valores,
 }: {
   accion: Accion;
-  donacionId: string;
   tamanoMaximoMb: number;
-  /** Presentes cuando ya se subió una boleta y se está reemplazando. */
-  valores?: { banco: string; numero: string; fecha: string };
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
-  const reemplazando = Boolean(valores);
 
   return (
     <form action={enviar} className="flex flex-col gap-5" noValidate>
       <Mensajes estado={estado} />
 
-      <input type="hidden" name="donacionId" value={donacionId} />
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <CampoTexto
-          id="boletaBanco"
-          name="boletaBanco"
-          etiqueta="Banco"
-          ayuda="Dónde hiciste el depósito o desde dónde transferiste."
-          requerido
-          defaultValue={valores?.banco}
-          error={e.boletaBanco}
-          autoComplete="off"
-        />
-        <CampoTexto
-          id="boletaNumero"
-          name="boletaNumero"
-          etiqueta="Número de boleta o transacción"
-          requerido
-          defaultValue={valores?.numero}
-          error={e.boletaNumero}
-          autoComplete="off"
-        />
-      </div>
-
       <CampoTexto
-        id="boletaFecha"
-        name="boletaFecha"
-        type="date"
-        etiqueta="Fecha del depósito"
-        requerido
-        defaultValue={valores?.fecha}
-        error={e.boletaFecha}
-        className="max-w-xs"
+        id="destinoNino"
+        name="destinoNino"
+        etiqueta="¿A qué niño va dirigido? (opcional)"
+        ayuda="Escribe su código o su nombre, como lo recuerdes. Si lo dejas en blanco, tu donativo se usa donde más haga falta."
+        maxLength={120}
+        error={e.destinoNino}
+        autoComplete="off"
       />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="boleta" className="text-sm font-semibold text-ink">
-          Imagen o PDF de la boleta
+          Foto o PDF de la boleta
           <span className="ml-1 text-danger" aria-hidden="true">
             *
           </span>
           <span className="visually-hidden">(obligatorio)</span>
         </label>
         <p id="boleta-ayuda" className="medida-lectura text-xs text-ink-soft">
-          Una foto legible de la boleta sellada o el comprobante que da la banca
-          en línea, en JPG, PNG, WebP o PDF, de {tamanoMaximoMb} MB como máximo.
-          El archivo queda fuera de cualquier carpeta pública: solo lo abre el
-          personal que revisa los aportes.
+          La boleta sellada o el comprobante que da la banca en línea, en JPG,
+          PNG, WebP, HEIC (la foto tal cual sale del iPhone) o PDF, de{" "}
+          {tamanoMaximoMb} MB como máximo. El archivo queda fuera de cualquier
+          carpeta pública: solo lo abre el personal que revisa los aportes.
         </p>
         <input
           id="boleta"
           name="boleta"
           type="file"
           required
-          accept="application/pdf,image/jpeg,image/png,image/webp"
+          accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           aria-describedby={e.boleta ? "boleta-ayuda boleta-error" : "boleta-ayuda"}
           aria-invalid={e.boleta ? true : undefined}
           className="w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-[var(--radius-sm)] file:border-0 file:bg-brand-sky file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-dark"
@@ -562,11 +466,7 @@ export function FormularioBoleta({
 
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">
-          {pendiente
-            ? "Enviando…"
-            : reemplazando
-              ? "Reemplazar la boleta"
-              : "Enviar la boleta"}
+          {pendiente ? "Enviando…" : "Enviar mi donativo"}
         </Boton>
       </div>
     </form>

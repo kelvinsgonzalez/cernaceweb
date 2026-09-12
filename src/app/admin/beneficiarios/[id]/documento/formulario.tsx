@@ -85,9 +85,10 @@ export function FormularioDocumento({
           <span className="visually-hidden">(obligatorio)</span>
         </label>
         <p id="archivo-ayuda" className="medida-lectura text-xs text-ink-soft">
-          PDF o imagen JPG, PNG o WebP, de {tamanoMaximoMb} MB como máximo. Se
-          guarda fuera de cualquier carpeta pública y se entrega por una ruta que
-          comprueba el permiso en cada descarga.
+          PDF o imagen JPG, PNG, WebP o HEIC (la foto del iPhone), de{" "}
+          {tamanoMaximoMb} MB como máximo. Se guarda fuera de cualquier carpeta
+          pública y se entrega por una ruta que comprueba el permiso en cada
+          descarga.
         </p>
         <input
           id="archivo"
@@ -95,7 +96,7 @@ export function FormularioDocumento({
           type="file"
           required={!corrigiendo}
           disabled={corrigiendo}
-          accept="application/pdf,image/jpeg,image/png,image/webp"
+          accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           aria-describedby={
             e.archivo ? "archivo-ayuda archivo-error" : "archivo-ayuda"
           }

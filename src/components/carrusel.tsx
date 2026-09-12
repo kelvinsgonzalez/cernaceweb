@@ -9,6 +9,9 @@ export type Lamina = {
   src: string;
   alt: string;
   pie: string;
+  /** Con título y texto la lámina lleva un mensaje sobrepuesto a la foto. */
+  titulo?: string;
+  texto?: string;
 };
 
 const INTERVALO = 6000;
@@ -21,9 +24,15 @@ const INTERVALO = 6000;
 export function Carrusel({
   laminas,
   className,
+  etiqueta = "Programas de CERNACE",
+  encuadre = "contain",
 }: {
   laminas: Lamina[];
   className?: string;
+  etiqueta?: string;
+  /** `contain` respeta el encuadre original; `cover` llena la lámina, que es
+   *  lo que necesita un mensaje sobrepuesto para tener fondo detrás. */
+  encuadre?: "contain" | "cover";
 }) {
   const pista = useRef<HTMLDivElement>(null);
   const [actual, setActual] = useState(0);
@@ -74,7 +83,7 @@ export function Carrusel({
       className={cn("flex flex-col gap-3", className)}
       role="group"
       aria-roledescription="carrusel"
-      aria-label="Programas de CERNACE"
+      aria-label={etiqueta}
       onMouseEnter={() => setDetenido(true)}
       onMouseLeave={() => setDetenido(false)}
       onFocusCapture={() => setDetenido(true)}
@@ -87,23 +96,44 @@ export function Carrusel({
         >
           {laminas.map((lamina, indice) => (
             <div
-              key={lamina.src}
+              key={`${indice}-${lamina.src}`}
               className="w-full shrink-0 snap-center"
               role="group"
               aria-roledescription="diapositiva"
               aria-label={`${indice + 1} de ${laminas.length}: ${lamina.pie}`}
               aria-hidden={indice !== actual}
             >
-              {/* `contain` y no `cover`: son fotos documentales de grupo y un
-                  recorte dejaría personas fuera del encuadre. */}
-              <Image
-                src={lamina.src}
-                alt={lamina.alt}
-                width={1200}
-                height={900}
-                priority={indice === 0}
-                className="aspect-[4/3] w-full bg-brand-sky object-contain"
-              />
+              {/* Por defecto `contain` y no `cover`: son fotos documentales de
+                  grupo y un recorte dejaría personas fuera del encuadre. */}
+              <div className="relative">
+                <Image
+                  src={lamina.src}
+                  alt={lamina.alt}
+                  width={1200}
+                  height={900}
+                  priority={indice === 0}
+                  className={cn(
+                    "aspect-[4/3] w-full bg-brand-sky",
+                    encuadre === "cover" ? "object-cover" : "object-contain",
+                  )}
+                />
+                {lamina.titulo || lamina.texto ? (
+                  // El degradado va debajo del texto y no como fondo suyo: sobre
+                  // una foto clara el blanco sin velo se vuelve ilegible.
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-dark via-brand-dark/85 to-transparent p-5 pt-16 sm:p-7 sm:pt-20">
+                    {lamina.titulo ? (
+                      <h3 className="font-heading text-xl font-semibold text-crema sm:text-2xl">
+                        {lamina.titulo}
+                      </h3>
+                    ) : null}
+                    {lamina.texto ? (
+                      <p className="medida-lectura mt-2 text-sm text-crema/85 sm:text-base">
+                        {lamina.texto}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -127,7 +157,7 @@ export function Carrusel({
         <div className="flex shrink-0 gap-2">
           {laminas.map((lamina, indice) => (
             <button
-              key={lamina.src}
+              key={`${indice}-${lamina.src}`}
               type="button"
               onClick={() => irA(indice)}
               aria-current={indice === actual}

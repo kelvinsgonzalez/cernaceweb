@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CircleAlert, CircleCheck, Clock3, Printer, Receipt } from "lucide-react";
+import { CircleAlert, CircleCheck, Clock3, Heart, Printer } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Campo, ChipDonacion, EnlaceBoton, Tarjeta } from "@/components/ui";
-import { formatFecha, formatFechaHora, formatQuetzales } from "@/lib/fechas";
+import { formatFechaHora, formatMontoOpcional } from "@/lib/fechas";
 import { etiquetaMetodo, requiereBoleta } from "@/lib/pasarela";
-import { aNumero } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Comprobante de donación",
@@ -35,7 +34,7 @@ export default async function GraciasPage({
     ? "¡Gracias por tu donación!"
     : enRevision
       ? conBoleta
-        ? "Recibimos tu boleta"
+        ? "¡Gracias por tu donativo!"
         : "Tu donación está pendiente"
       : "El pago no se completó";
 
@@ -43,8 +42,8 @@ export default async function GraciasPage({
     ? "La transacción quedó registrada en el sistema. Este es tu comprobante."
     : enRevision
       ? conBoleta
-        ? "El equipo la cotejará contra el estado de cuenta y te confirmará al correo que dejaste. Guarda la referencia por si necesitas escribirnos."
-        : "Todavía no recibimos el comprobante del depósito. Súbelo cuando lo tengas a mano y el equipo lo revisará."
+        ? "Recibimos tu boleta y ya está en manos del equipo. La cotejaremos contra el estado de cuenta para dar el aporte por bueno. Gracias por sostener el trabajo del centro."
+        : "Todavía no recibimos el comprobante del depósito."
       : porBanco
         ? "El equipo no pudo dar por buena esta boleta. Si crees que es un error, escríbenos con la referencia a la vista."
         : "La pasarela rechazó la transacción en modo prueba. Puedes intentarlo de nuevo cuando quieras.";
@@ -59,14 +58,20 @@ export default async function GraciasPage({
               aprobada
                 ? "bg-ok-bg text-ok-fg"
                 : enRevision
-                  ? "bg-warn-bg text-warn-fg"
+                  ? conBoleta
+                    ? "bg-brand-sky text-brand-primary"
+                    : "bg-warn-bg text-warn-fg"
                   : "bg-bad-bg text-bad-fg"
             }`}
           >
             {aprobada ? (
               <CircleCheck className="size-6" />
             ) : enRevision ? (
-              <Clock3 className="size-6" />
+              conBoleta ? (
+                <Heart className="size-6" />
+              ) : (
+                <Clock3 className="size-6" />
+              )
             ) : (
               <CircleAlert className="size-6" />
             )}
@@ -82,38 +87,31 @@ export default async function GraciasPage({
         <h2 className="mt-8 font-heading text-lg font-semibold text-ink">
           Comprobante
         </h2>
+        <p className="medida-lectura mt-2 text-sm text-ink-soft">
+          Guarda la referencia{" "}
+          <strong className="font-mono text-ink">
+            {donacion.referenciaPasarela}
+          </strong>
+          : es con lo que el equipo localiza tu aporte si necesitas escribirnos.
+        </p>
         <dl className="mt-4 grid gap-5 border-t border-line pt-5 sm:grid-cols-2">
           <Campo etiqueta="Referencia">{donacion.referenciaPasarela}</Campo>
           <Campo etiqueta="Estado">
             <ChipDonacion estado={donacion.estado} />
           </Campo>
           <Campo etiqueta="Monto">
-            {formatQuetzales(aNumero(donacion.monto))} {donacion.moneda}
+            {donacion.monto === null
+              ? "Lo toma el equipo de tu boleta"
+              : `${formatMontoOpcional(donacion.monto)} ${donacion.moneda}`}
           </Campo>
           <Campo etiqueta="Método">{etiquetaMetodo(donacion.metodo)}</Campo>
-          <Campo etiqueta="Donante">{donacion.donanteNombre}</Campo>
-          <Campo etiqueta="Correo">{donacion.donanteEmail}</Campo>
           <Campo etiqueta="Destino">
-            {donacion.campaign?.titulo ?? "Donde más se necesite"}
+            {donacion.destinoNino ??
+              donacion.campaign?.titulo ??
+              "Donde más se necesite"}
           </Campo>
           <Campo etiqueta="Fecha">{formatFechaHora(donacion.createdAt)}</Campo>
         </dl>
-
-        {conBoleta ? (
-          <div className="mt-6 rounded-[var(--radius-sm)] border border-line bg-canvas p-5">
-            <h3 className="flex items-center gap-2 font-heading text-base font-semibold text-ink">
-              <Receipt aria-hidden="true" className="size-4 text-brand-primary" />
-              Boleta que recibimos
-            </h3>
-            <dl className="mt-4 grid gap-5 sm:grid-cols-3">
-              <Campo etiqueta="Banco">{donacion.boletaBanco ?? "—"}</Campo>
-              <Campo etiqueta="Número">{donacion.boletaNumero ?? "—"}</Campo>
-              <Campo etiqueta="Fecha del depósito">
-                {formatFecha(donacion.boletaFecha)}
-              </Campo>
-            </dl>
-          </div>
-        ) : null}
 
         {!aprobada && !enRevision && donacion.notaVerificacion ? (
           <p className="medida-lectura mt-6 rounded-[var(--radius-sm)] bg-bad-bg px-4 py-3 text-sm font-medium text-bad-fg">
@@ -126,20 +124,15 @@ export default async function GraciasPage({
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          {porBanco && enRevision ? (
-            <EnlaceBoton href={`/donar/pagar/${donacion.id}`}>
-              {conBoleta ? "Subir otra boleta" : "Subir la boleta"}
-            </EnlaceBoton>
-          ) : null}
           <EnlaceBoton href="/" variante="contorno">
             Volver al inicio
           </EnlaceBoton>
-          {aprobada ? (
+          {aprobada || (enRevision && conBoleta) ? (
             <EnlaceBoton href="/apadrina" variante="suave">
               <Printer aria-hidden="true" className="size-4" />
               Conocer a quiénes apoyas
             </EnlaceBoton>
-          ) : enRevision ? null : (
+          ) : (
             <EnlaceBoton href="/donar">Intentar de nuevo</EnlaceBoton>
           )}
         </div>

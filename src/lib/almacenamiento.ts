@@ -42,11 +42,25 @@ export const MAXIMO_FOTOS = 4;
 /** Fotos de evidencia por subida. El expediente no tiene tope: se van sumando. */
 export const MAXIMO_FOTOS_EXPEDIENTE = 8;
 
+/**
+ * Las fotos del iPhone salen en HEIC. Se admiten donde el archivo solo hay que
+ * guardarlo para que alguien lo abra —boletas y documentos—, y no donde luego
+ * se pinta en la web: Chrome y Firefox no saben mostrar un HEIC.
+ */
+export const TIPOS_FOTO_IPHONE = ["image/heic", "image/heif"] as const;
+
+export function esFotoIphone(tipoMime: string): boolean {
+  return TIPOS_FOTO_IPHONE.includes(
+    tipoMime.toLowerCase() as (typeof TIPOS_FOTO_IPHONE)[number],
+  );
+}
+
 export const TIPOS_DOCUMENTO = [
   "application/pdf",
   "image/jpeg",
   "image/png",
   "image/webp",
+  ...TIPOS_FOTO_IPHONE,
 ] as const;
 export const TAMANO_MAXIMO_DOCUMENTO = 10 * 1024 * 1024;
 
@@ -55,7 +69,31 @@ const EXTENSIONES: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
   "application/pdf": "pdf",
+  "image/heic": "heic",
+  "image/heif": "heif",
 };
+
+const TIPOS_POR_EXTENSION: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  heic: "image/heic",
+  heif: "image/heif",
+};
+
+/**
+ * Manda el tipo que declara el navegador, salvo cuando no declara ninguno: con
+ * un HEIC varios mandan el campo vacío o application/octet-stream, y entonces
+ * la extensión es lo único que queda.
+ */
+export function tipoDeArchivo(archivo: File): string {
+  const declarado = archivo.type.trim().toLowerCase();
+  if (declarado && declarado !== "application/octet-stream") return declarado;
+  const extension = archivo.name.split(".").pop()?.toLowerCase() ?? "";
+  return TIPOS_POR_EXTENSION[extension] ?? declarado;
+}
 
 export type ArchivoGuardado = {
   archivo: string;
@@ -68,7 +106,9 @@ export function validarImagen(archivo: File): string | null {
   if (archivo.size > TAMANO_MAXIMO) {
     return `La imagen no puede pasar de ${TAMANO_MAXIMO / (1024 * 1024)} MB.`;
   }
-  if (!TIPOS_IMAGEN.includes(archivo.type as (typeof TIPOS_IMAGEN)[number])) {
+  if (
+    !TIPOS_IMAGEN.includes(tipoDeArchivo(archivo) as (typeof TIPOS_IMAGEN)[number])
+  ) {
     return "Solo se admiten imágenes JPG, PNG o WebP.";
   }
   return null;
@@ -85,13 +125,14 @@ async function guardar(
   const destino = carpeta(enCarpeta);
   await mkdir(destino, { recursive: true });
 
-  const nombre = `${randomUUID()}.${EXTENSIONES[archivo.type]}`;
+  const tipo = tipoDeArchivo(archivo);
+  const nombre = `${randomUUID()}.${EXTENSIONES[tipo]}`;
   const contenido = Buffer.from(await archivo.arrayBuffer());
   await writeFile(path.join(destino, nombre), contenido);
 
   return {
     archivo: nombre,
-    tipoMime: archivo.type,
+    tipoMime: tipo,
     tamanoBytes: contenido.byteLength,
   };
 }
@@ -126,8 +167,12 @@ export function validarDocumento(archivo: File): string | null {
   if (archivo.size > TAMANO_MAXIMO_DOCUMENTO) {
     return `El documento no puede pasar de ${TAMANO_MAXIMO_DOCUMENTO / (1024 * 1024)} MB.`;
   }
-  if (!TIPOS_DOCUMENTO.includes(archivo.type as (typeof TIPOS_DOCUMENTO)[number])) {
-    return "Solo se admiten PDF o imágenes JPG, PNG y WebP.";
+  if (
+    !TIPOS_DOCUMENTO.includes(
+      tipoDeArchivo(archivo) as (typeof TIPOS_DOCUMENTO)[number],
+    )
+  ) {
+    return "Solo se admiten PDF o imágenes JPG, PNG, WebP y HEIC.";
   }
   return null;
 }
@@ -138,8 +183,12 @@ export function validarBoleta(archivo: File): string | null {
   if (archivo.size > TAMANO_MAXIMO_DOCUMENTO) {
     return `La boleta no puede pasar de ${TAMANO_MAXIMO_DOCUMENTO / (1024 * 1024)} MB.`;
   }
-  if (!TIPOS_DOCUMENTO.includes(archivo.type as (typeof TIPOS_DOCUMENTO)[number])) {
-    return "Sube una foto de la boleta (JPG, PNG o WebP) o el PDF del banco.";
+  if (
+    !TIPOS_DOCUMENTO.includes(
+      tipoDeArchivo(archivo) as (typeof TIPOS_DOCUMENTO)[number],
+    )
+  ) {
+    return "Sube una foto de la boleta (JPG, PNG, WebP o HEIC del iPhone) o el PDF del banco.";
   }
   return null;
 }
@@ -215,11 +264,8 @@ export function borrarBoleta(nombre: string) {
 
 /** Deduce el tipo a partir de la extensión, para servir el archivo guardado. */
 export function tipoPorExtension(nombre: string): string {
-  const ext = path.extname(nombre).toLowerCase();
-  if (ext === ".png") return "image/png";
-  if (ext === ".webp") return "image/webp";
-  if (ext === ".pdf") return "application/pdf";
-  return "image/jpeg";
+  const extension = path.extname(nombre).toLowerCase().slice(1);
+  return TIPOS_POR_EXTENSION[extension] ?? "image/jpeg";
 }
 
 /** Ruta absoluta de la carpeta de documentos, para el seed de demostración. */

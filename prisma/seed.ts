@@ -1839,26 +1839,45 @@ async function sembrarConfiguracion() {
       },
       {
         clave: "donaciones.banco",
-        valor: "Banrural",
-        descripcion: "Banco de la cuenta a la que se deposita, visible al donar.",
+        valor: "Banco Banrural Guatemala",
+        descripcion:
+          "Banco de la cuenta en quetzales a la que se deposita, visible al donar.",
         grupo: "donaciones",
       },
       {
         clave: "donaciones.cuentaTipo",
         valor: "Monetaria",
-        descripcion: "Tipo de cuenta que se muestra al donante.",
+        descripcion: "Tipo de la cuenta en quetzales que se muestra al donante.",
         grupo: "donaciones",
       },
       {
         clave: "donaciones.cuentaNumero",
-        valor: "3-000-00000-0",
-        descripcion: "Número de cuenta para transferencias y depósitos.",
+        valor: "353105163",
+        descripcion: "Número de la cuenta en quetzales para depósitos y transferencias.",
         grupo: "donaciones",
       },
       {
         clave: "donaciones.cuentaTitular",
-        valor: "Asociación CERNACE",
-        descripcion: "A nombre de quién está la cuenta bancaria.",
+        valor: "Asociación Unidos para Ayudar al Desarrollo Integral de los Pueblos",
+        descripcion: "A nombre de quién está la cuenta en quetzales.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.bancoDolares",
+        valor: "Chase Bank, Estados Unidos",
+        descripcion: "Banco de la cuenta en dólares, para donativos desde el extranjero.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.cuentaDolaresNumero",
+        valor: "643788912",
+        descripcion: "Número de la cuenta en dólares para depósitos y transferencias.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.cuentaDolaresTitular",
+        valor: "Isaías Gálvez",
+        descripcion: "A nombre de quién está la cuenta en dólares.",
         grupo: "donaciones",
       },
       {
