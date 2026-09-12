@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
-import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import { Tarjeta } from "@/components/ui";
-import { leerContacto } from "@/components/publico";
 import { FormularioContacto } from "@/components/formularios-publicos";
+import { SeccionDirectorio, TarjetaCanales } from "@/components/directorio";
 import { enviarContacto } from "../acciones";
 
 export const metadata: Metadata = {
   title: "Contacto",
-  description: "Escríbenos o visítanos en Chimaltenango.",
+  description:
+    "Escríbenos o visítanos en el Caserío San Pedro, Cuilco, Huehuetenango.",
 };
 
 export const dynamic = "force-dynamic";
 
-export default async function ContactoPage() {
-  const contacto = await leerContacto();
-
+export default function ContactoPage() {
   return (
     <>
       <section className="franja-clara border-b border-line">
@@ -40,36 +38,12 @@ export default async function ContactoPage() {
           </div>
         </Tarjeta>
 
-        <aside aria-labelledby="datos-contacto">
-          <Tarjeta className="p-6">
-            <h2 id="datos-contacto" className="font-heading text-lg font-semibold text-ink">
-              Dónde encontrarnos
-            </h2>
-            <address className="mt-4 space-y-4 text-sm not-italic text-ink-soft">
-              <p className="flex items-start gap-3">
-                <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-primary" />
-                {contacto.direccion}
-              </p>
-              <p className="flex items-start gap-3">
-                <Phone aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-primary" />
-                <a href={`tel:${contacto.telefono.replace(/\s/g, "")}`} className="hover:underline">
-                  {contacto.telefono}
-                </a>
-              </p>
-              <p className="flex items-start gap-3">
-                <Mail aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-primary" />
-                <a href={`mailto:${contacto.email}`} className="hover:underline">
-                  {contacto.email}
-                </a>
-              </p>
-              <p className="flex items-start gap-3">
-                <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand-primary" />
-                Lunes a viernes, 8:00 a 16:30
-              </p>
-            </address>
-          </Tarjeta>
+        <aside>
+          <TarjetaCanales />
         </aside>
       </div>
+
+      <SeccionDirectorio />
     </>
   );
 }

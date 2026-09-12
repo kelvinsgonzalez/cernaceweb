@@ -408,6 +408,7 @@ export function FormularioDonacion({
           id="metodo"
           name="metodo"
           etiqueta="Método de pago"
+          ayuda="Con transferencia o depósito, en el siguiente paso verás la cuenta y podrás subir tu boleta."
           requerido
           error={e.metodo}
           defaultValue="TARJETA"
@@ -455,6 +456,117 @@ export function FormularioDonacion({
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">
           {pendiente ? "Procesando…" : "Continuar al pago"}
+        </Boton>
+      </div>
+    </form>
+  );
+}
+
+/* -------------------------------------------------------------------------
+   Boleta de transferencia o depósito
+   ------------------------------------------------------------------------- */
+
+/**
+ * Lo que sube el donante cuando pagó por el banco. No confirma la donación:
+ * la deja pendiente de que el equipo coteje la boleta.
+ */
+export function FormularioBoleta({
+  accion,
+  donacionId,
+  tamanoMaximoMb,
+  valores,
+}: {
+  accion: Accion;
+  donacionId: string;
+  tamanoMaximoMb: number;
+  /** Presentes cuando ya se subió una boleta y se está reemplazando. */
+  valores?: { banco: string; numero: string; fecha: string };
+}) {
+  const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
+  const e = estado.errores ?? {};
+  const reemplazando = Boolean(valores);
+
+  return (
+    <form action={enviar} className="flex flex-col gap-5" noValidate>
+      <Mensajes estado={estado} />
+
+      <input type="hidden" name="donacionId" value={donacionId} />
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <CampoTexto
+          id="boletaBanco"
+          name="boletaBanco"
+          etiqueta="Banco"
+          ayuda="Dónde hiciste el depósito o desde dónde transferiste."
+          requerido
+          defaultValue={valores?.banco}
+          error={e.boletaBanco}
+          autoComplete="off"
+        />
+        <CampoTexto
+          id="boletaNumero"
+          name="boletaNumero"
+          etiqueta="Número de boleta o transacción"
+          requerido
+          defaultValue={valores?.numero}
+          error={e.boletaNumero}
+          autoComplete="off"
+        />
+      </div>
+
+      <CampoTexto
+        id="boletaFecha"
+        name="boletaFecha"
+        type="date"
+        etiqueta="Fecha del depósito"
+        requerido
+        defaultValue={valores?.fecha}
+        error={e.boletaFecha}
+        className="max-w-xs"
+      />
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="boleta" className="text-sm font-semibold text-ink">
+          Imagen o PDF de la boleta
+          <span className="ml-1 text-danger" aria-hidden="true">
+            *
+          </span>
+          <span className="visually-hidden">(obligatorio)</span>
+        </label>
+        <p id="boleta-ayuda" className="medida-lectura text-xs text-ink-soft">
+          Una foto legible de la boleta sellada o el comprobante que da la banca
+          en línea, en JPG, PNG, WebP o PDF, de {tamanoMaximoMb} MB como máximo.
+          El archivo queda fuera de cualquier carpeta pública: solo lo abre el
+          personal que revisa los aportes.
+        </p>
+        <input
+          id="boleta"
+          name="boleta"
+          type="file"
+          required
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          aria-describedby={e.boleta ? "boleta-ayuda boleta-error" : "boleta-ayuda"}
+          aria-invalid={e.boleta ? true : undefined}
+          className="w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-[var(--radius-sm)] file:border-0 file:bg-brand-sky file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-dark"
+        />
+        {e.boleta ? (
+          <p
+            id="boleta-error"
+            role="alert"
+            className="text-xs font-medium text-danger"
+          >
+            {e.boleta}
+          </p>
+        ) : null}
+      </div>
+
+      <div>
+        <Boton type="submit" disabled={pendiente} className="px-6 py-3">
+          {pendiente
+            ? "Enviando…"
+            : reemplazando
+              ? "Reemplazar la boleta"
+              : "Enviar la boleta"}
         </Boton>
       </div>
     </form>

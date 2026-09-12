@@ -479,6 +479,84 @@ table {
   }
 }
 
+/* =========================================================================
+   Hoja de información — los "pop" del sitio público
+
+   Misma Popover API que el menú de acciones, pero para leer: una hoja que sube
+   desde abajo en el teléfono y una tarjeta centrada con su propio scroll en
+   pantalla grande. El encabezado se queda fijo mientras el cuerpo se desplaza.
+
+   Sin Popover API (Safari < 17) el panel se queda como una tarjeta más dentro
+   del flujo y se oculta su disparador (`.menu-disparador`): aquí el contenido
+   es información institucional, no puede desaparecer porque falte una API.
+   ========================================================================= */
+
+.hoja-info {
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-alta);
+  color: var(--color-ink);
+}
+
+/* Sin la API la ficha es una tarjeta más de la página, siempre a la vista. */
+@supports not selector(:popover-open) {
+  .hoja-info {
+    display: flex;
+  }
+}
+
+@supports selector(:popover-open) {
+  /* `display` solo cuando está abierta: darle un valor fijo pisaría el
+     `display: none` con el que el navegador mantiene cerrado un popover. */
+  .hoja-info:popover-open {
+    display: flex;
+  }
+
+  .hoja-info {
+    position: fixed;
+    inset: auto 0 0 0;
+    max-height: calc(100dvh - 3rem);
+    border-bottom: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .hoja-info::backdrop {
+    background: rgba(10, 28, 63, 0.45);
+  }
+
+  @media (min-width: 640px) {
+    .hoja-info {
+      inset: 0;
+      width: min(44rem, calc(100vw - 2.5rem));
+      height: max-content;
+      max-height: min(82dvh, 48rem);
+      margin: auto;
+      border-bottom: 1px solid var(--color-line);
+      border-radius: var(--radius-lg);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hoja-info:popover-open {
+    animation: menu-entra 0.24s var(--ease-suave) both;
+  }
+}
+
+/* El cuerpo es lo único que se desplaza; el encabezado y el pie no se mueven. */
+.hoja-info-cuerpo {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
 /* Última columna anclada al borde derecho mientras la tabla no cabe: en un
    teléfono las acciones quedarían fuera de la pantalla y habría que arrastrar
    la tabla a ciegas para llegar a ellas. */

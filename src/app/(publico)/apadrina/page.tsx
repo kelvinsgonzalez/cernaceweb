@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Boton, EnlaceBoton, Tarjeta, Vacio } from "@/components/ui";
 import { IconoPrograma } from "@/components/icono-programa";
 import { PortadaBeneficiario } from "@/components/foto-beneficiario";
+import { SeccionComoAyudar } from "@/components/como-ayudar";
 import { calcularEdad } from "@/lib/fechas";
 import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
@@ -53,17 +54,13 @@ export default async function GaleriaPage({
     <>
       <section className="franja-clara border-b border-line">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
-          <p className="rotulo aparece text-brand-primary">Apadrinamiento</p>
-          <h1 className="filete aparece aparece-2 mt-3 font-heading text-3xl font-semibold tracking-tight text-brand-dark sm:text-5xl">
-            Ellos esperan un padrino
+          <h1 className="filete aparece font-heading text-3xl font-semibold tracking-tight text-brand-dark sm:text-5xl">
+            Juntos podemos crear posibilidades
           </h1>
-          <p className="medida-lectura aparece aparece-3 mt-4 text-lg text-ink">
-            Estos beneficiarios están activos en un programa pero todavía no
-            tienen apoyo asignado. Para proteger su privacidad publicamos
-            únicamente su primer nombre, su edad y el programa al que asisten.
-          </p>
         </div>
       </section>
+
+      <SeccionComoAyudar />
 
       <div className="mx-auto max-w-6xl px-4 py-10">
         {/* Filtro sin JavaScript: formulario GET. */}

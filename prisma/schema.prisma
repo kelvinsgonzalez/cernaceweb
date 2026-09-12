@@ -552,6 +552,19 @@ model Donacion {
   referenciaPasarela String         @unique
   recurrente         Boolean        @default(false)
   mensaje            String?
+  // Comprobante del banco: solo lo traen la transferencia y el depósito. El
+  // archivo vive fuera de public/ y se entrega por /api/boletas/[id].
+  boletaArchivo      String?
+  boletaTipoMime     String?
+  boletaTamanoBytes  Int?
+  boletaBanco        String?
+  boletaNumero       String?
+  boletaFecha        DateTime?      @db.Date
+  boletaSubidaEn     DateTime?
+  // Quién dio por buena la boleta en el panel, y cuándo.
+  verificadaPor      String?
+  verificadaEn       DateTime?
+  notaVerificacion   String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   padrino            Padrino?       @relation(fields: [padrinoId], references: [id], onDelete: SetNull)

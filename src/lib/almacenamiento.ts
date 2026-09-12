@@ -15,6 +15,7 @@ const CARPETA_AVANCES = "avances";
 const CARPETA_BENEFICIARIOS = "beneficiarios";
 const CARPETA_DOCUMENTOS = "documentos";
 const CARPETA_EVIDENCIAS = "evidencias";
+const CARPETA_BOLETAS = "boletas";
 
 /**
  * Se resuelve en cada llamada para que un cambio de ALMACENAMIENTO_DIR surta
@@ -113,6 +114,12 @@ export function guardarFotoExpediente(archivo: File): Promise<ArchivoGuardado> {
   return guardar(archivo, CARPETA_EVIDENCIAS);
 }
 
+/** Comprobante de una transferencia o un depósito. Lleva datos bancarios del
+ *  donante, así que tampoco vive en public/: se sirve por /api/boletas/[id]. */
+export function guardarBoleta(archivo: File): Promise<ArchivoGuardado> {
+  return guardar(archivo, CARPETA_BOLETAS);
+}
+
 /** Un expediente admite PDF además de imágenes, y pesos algo mayores. */
 export function validarDocumento(archivo: File): string | null {
   if (archivo.size === 0) return "El archivo llegó vacío.";
@@ -121,6 +128,18 @@ export function validarDocumento(archivo: File): string | null {
   }
   if (!TIPOS_DOCUMENTO.includes(archivo.type as (typeof TIPOS_DOCUMENTO)[number])) {
     return "Solo se admiten PDF o imágenes JPG, PNG y WebP.";
+  }
+  return null;
+}
+
+/** La boleta admite lo mismo que un documento; solo cambia cómo se nombra. */
+export function validarBoleta(archivo: File): string | null {
+  if (archivo.size === 0) return "El archivo llegó vacío.";
+  if (archivo.size > TAMANO_MAXIMO_DOCUMENTO) {
+    return `La boleta no puede pasar de ${TAMANO_MAXIMO_DOCUMENTO / (1024 * 1024)} MB.`;
+  }
+  if (!TIPOS_DOCUMENTO.includes(archivo.type as (typeof TIPOS_DOCUMENTO)[number])) {
+    return "Sube una foto de la boleta (JPG, PNG o WebP) o el PDF del banco.";
   }
   return null;
 }
@@ -184,6 +203,14 @@ export function leerFotoExpediente(nombre: string) {
 
 export function borrarFotoExpediente(nombre: string) {
   return borrar(nombre, CARPETA_EVIDENCIAS);
+}
+
+export function leerBoleta(nombre: string) {
+  return leer(nombre, CARPETA_BOLETAS);
+}
+
+export function borrarBoleta(nombre: string) {
+  return borrar(nombre, CARPETA_BOLETAS);
 }
 
 /** Deduce el tipo a partir de la extensión, para servir el archivo guardado. */

@@ -20,6 +20,7 @@ export const PERMISOS = {
   TERAPIA_GESTIONAR: "terapia.gestionar",
   TERAPEUTAS_GESTIONAR: "terapeutas.gestionar",
   DONACIONES_LEER: "donaciones.leer",
+  DONACIONES_GESTIONAR: "donaciones.gestionar",
   PADRINAZGOS_GESTIONAR: "padrinazgos.gestionar",
   PADRINOS_GESTIONAR: "padrinos.gestionar",
   GALERIA_PUBLICAR: "galeria.publicar",
@@ -141,6 +142,13 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     modulo: "Donaciones",
   },
   {
+    clave: PERMISOS.DONACIONES_GESTIONAR,
+    nombre: "Verificar donaciones",
+    descripcion:
+      "Cotejar la boleta de una transferencia o un depósito y dar la donación por buena o rechazarla.",
+    modulo: "Donaciones",
+  },
+  {
     clave: PERMISOS.PADRINAZGOS_GESTIONAR,
     nombre: "Asignar padrinazgos",
     descripcion:
@@ -250,6 +258,7 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
       PERMISOS.TERAPIA_GESTIONAR,
       PERMISOS.TERAPEUTAS_GESTIONAR,
       PERMISOS.DONACIONES_LEER,
+      PERMISOS.DONACIONES_GESTIONAR,
       PERMISOS.PADRINAZGOS_GESTIONAR,
       PERMISOS.PADRINOS_GESTIONAR,
       PERMISOS.GALERIA_PUBLICAR,

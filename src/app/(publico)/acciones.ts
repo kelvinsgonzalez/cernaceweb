@@ -3,12 +3,14 @@
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { pasarela } from "@/lib/pasarela";
+import { pasarela, requiereBoleta } from "@/lib/pasarela";
 import { registrarAuditoria } from "@/lib/sesion";
 import { ROLES } from "@/lib/rbac";
 import { fechaDesdeInput } from "@/lib/fechas";
+import { borrarBoleta, guardarBoleta, validarBoleta } from "@/lib/almacenamiento";
 import {
   erroresDeZod,
+  esquemaBoleta,
   esquemaContacto,
   esquemaDonacion,
   esquemaInscripcionBeneficiario,
@@ -244,6 +246,11 @@ export async function confirmarDonacion(datos: FormData) {
   const donacion = await prisma.donacion.findUnique({ where: { id } });
   if (!donacion) redirect("/donar");
 
+  // Una transferencia no la aprueba la pasarela: la aprueba quien coteja la
+  // boleta contra el estado de cuenta, desde el panel.
+  if (requiereBoleta(donacion.metodo)) redirect(`/donar/pagar/${donacion.id}`);
+  if (donacion.estado !== "PENDIENTE") redirect(`/donar/gracias/${donacion.id}`);
+
   const resultado = await pasarela.confirmar(
     donacion.referenciaPasarela,
     aprobar,
@@ -260,6 +267,100 @@ export async function confirmarDonacion(datos: FormData) {
     entidad: "Donacion",
     entidadId: donacion.id,
     detalle: `${resultado.mensaje} Referencia ${donacion.referenciaPasarela}`,
+  });
+
+  redirect(`/donar/gracias/${donacion.id}`);
+}
+
+/**
+ * Adjunta la boleta de una transferencia o un depósito. La donación sigue
+ * PENDIENTE: el dinero no está confirmado hasta que alguien del equipo coteja
+ * la boleta contra el estado de cuenta desde /admin/donaciones.
+ *
+ * Se puede volver a subir mientras siga pendiente —una boleta borrosa o del
+ * depósito equivocado se corrige sin abrir otra donación— y la anterior se
+ * borra del disco para no dejar archivos sueltos.
+ */
+export async function subirBoleta(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const parseo = esquemaBoleta.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const donacion = await prisma.donacion.findUnique({
+    where: { id: v.donacionId },
+    select: {
+      id: true,
+      estado: true,
+      metodo: true,
+      boletaArchivo: true,
+      referenciaPasarela: true,
+      donanteEmail: true,
+    },
+  });
+
+  if (!donacion || !requiereBoleta(donacion.metodo)) {
+    return { error: "Esa donación ya no admite boleta." };
+  }
+  if (donacion.estado !== "PENDIENTE") {
+    return {
+      error: "Esta donación ya fue revisada por el equipo; no admite otra boleta.",
+    };
+  }
+
+  const fecha = fechaDesdeInput(v.boletaFecha);
+  const manana = new Date();
+  manana.setHours(23, 59, 59, 999);
+  if (fecha > manana) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: { boletaFecha: "La fecha del depósito no puede ser futura." },
+    };
+  }
+
+  const entrante = datos.get("boleta");
+  if (!(entrante instanceof File) || entrante.size === 0) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: { boleta: "Elige la foto o el PDF de la boleta." },
+    };
+  }
+  const problema = validarBoleta(entrante);
+  if (problema) {
+    return { error: "Revisa los campos marcados.", errores: { boleta: problema } };
+  }
+
+  const guardado = await guardarBoleta(entrante);
+  const anterior = donacion.boletaArchivo;
+
+  await prisma.donacion.update({
+    where: { id: donacion.id },
+    data: {
+      boletaArchivo: guardado.archivo,
+      boletaTipoMime: guardado.tipoMime,
+      boletaTamanoBytes: guardado.tamanoBytes,
+      boletaBanco: v.boletaBanco,
+      boletaNumero: v.boletaNumero,
+      boletaFecha: fecha,
+      boletaSubidaEn: new Date(),
+    },
+  });
+
+  if (anterior) await borrarBoleta(anterior);
+
+  await registrarAuditoria({
+    actor: donacion.donanteEmail,
+    accion: anterior ? "ACTUALIZAR" : "CREAR",
+    entidad: "Donacion",
+    entidadId: donacion.id,
+    detalle: `Boleta ${v.boletaNumero} de ${v.boletaBanco} ${anterior ? "reemplazada" : "adjuntada"} · referencia ${donacion.referenciaPasarela}`,
   });
 
   redirect(`/donar/gracias/${donacion.id}`);

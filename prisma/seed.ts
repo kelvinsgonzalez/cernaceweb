@@ -1838,6 +1838,30 @@ async function sembrarConfiguracion() {
         grupo: "donaciones",
       },
       {
+        clave: "donaciones.banco",
+        valor: "Banrural",
+        descripcion: "Banco de la cuenta a la que se deposita, visible al donar.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.cuentaTipo",
+        valor: "Monetaria",
+        descripcion: "Tipo de cuenta que se muestra al donante.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.cuentaNumero",
+        valor: "3-000-00000-0",
+        descripcion: "Número de cuenta para transferencias y depósitos.",
+        grupo: "donaciones",
+      },
+      {
+        clave: "donaciones.cuentaTitular",
+        valor: "Asociación CERNACE",
+        descripcion: "A nombre de quién está la cuenta bancaria.",
+        grupo: "donaciones",
+      },
+      {
         clave: "pasarela.modo",
         valor: "PRUEBA",
         descripcion: "Modo de la pasarela de pago. En producción debe ser PRODUCCION.",

@@ -4,6 +4,7 @@ import { EnlaceBoton, Tarjeta } from "@/components/ui";
 import { IconoPrograma } from "@/components/icono-programa";
 import { PortadaBeneficiario } from "@/components/foto-beneficiario";
 import { Carrusel, type Lamina } from "@/components/carrusel";
+import { SeccionConocenos } from "@/components/conocenos";
 import { calcularEdad } from "@/lib/fechas";
 import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
@@ -116,6 +117,9 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Conócenos */}
+      <SeccionConocenos />
 
       {/* Programas */}
       <section

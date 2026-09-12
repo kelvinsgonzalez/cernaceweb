@@ -91,3 +91,26 @@ export const esquemaDonacion = z.object({
   recurrente: z.string().optional(),
   mensaje: z.string().trim().optional(),
 });
+
+/**
+ * Boleta de transferencia o depósito. El archivo no pasa por Zod —se valida
+ * aparte con `validarBoleta`—, aquí solo van los datos que el equipo necesita
+ * para cotejarla contra el estado de cuenta.
+ */
+export const esquemaBoleta = z.object({
+  donacionId: z.string().min(1),
+  boletaBanco: texto(2, "Escribe el banco donde hiciste el depósito."),
+  boletaNumero: texto(3, "Escribe el número de la boleta o de la transacción."),
+  boletaFecha: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Selecciona la fecha del depósito."),
+});
+
+/** Verificación de una boleta desde el panel. */
+export const esquemaVerificacionDonacion = z.object({
+  id: z.string().min(1),
+  decision: z.enum(["APROBAR", "RECHAZAR"], {
+    message: "Indica si la boleta se acepta o se rechaza.",
+  }),
+  notaVerificacion: z.string().trim().max(500).optional(),
+});
