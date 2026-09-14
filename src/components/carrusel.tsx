@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Lamina = {
@@ -12,6 +13,8 @@ export type Lamina = {
   /** Con título y texto la lámina lleva un mensaje sobrepuesto a la foto. */
   titulo?: string;
   texto?: string;
+  /** Botón junto al texto, para seguir leyendo fuera del carrusel. */
+  enlace?: { href: string; etiqueta: string };
 };
 
 const INTERVALO = 6000;
@@ -102,6 +105,8 @@ export function Carrusel({
               aria-roledescription="diapositiva"
               aria-label={`${indice + 1} de ${laminas.length}: ${lamina.pie}`}
               aria-hidden={indice !== actual}
+              // Sin esto, tabular llevaría al botón de una lámina que no se ve.
+              inert={indice !== actual}
             >
               {/* Por defecto `contain` y no `cover`: son fotos documentales de
                   grupo y un recorte dejaría personas fuera del encuadre. */}
@@ -117,20 +122,39 @@ export function Carrusel({
                     encuadre === "cover" ? "object-cover" : "object-contain",
                   )}
                 />
-                {lamina.titulo || lamina.texto ? (
+                {lamina.titulo || lamina.texto || lamina.enlace ? (
                   // El degradado va debajo del texto y no como fondo suyo: sobre
                   // una foto clara el blanco sin velo se vuelve ilegible.
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-dark via-brand-dark/85 to-transparent p-5 pt-16 sm:p-7 sm:pt-20">
-                    {lamina.titulo ? (
-                      <h3 className="font-heading text-xl font-semibold text-crema sm:text-2xl">
-                        {lamina.titulo}
-                      </h3>
-                    ) : null}
-                    {lamina.texto ? (
-                      <p className="medida-lectura mt-2 text-sm text-crema/85 sm:text-base">
-                        {lamina.texto}
-                      </p>
-                    ) : null}
+                  // `superficie-oscura` cambia el contorno del foco al amarillo
+                  // de marca, que es el que se ve sobre este fondo.
+                  <div className="superficie-oscura absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-dark via-brand-dark/85 to-transparent p-5 pt-16 sm:p-7 sm:pt-20">
+                    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+                      <div className="min-w-[15rem] flex-1">
+                        {lamina.titulo ? (
+                          <h3 className="font-heading text-xl font-semibold text-crema sm:text-2xl">
+                            {lamina.titulo}
+                          </h3>
+                        ) : null}
+                        {lamina.texto ? (
+                          <p className="medida-lectura mt-2 text-sm text-crema/85 sm:text-base">
+                            {lamina.texto}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {lamina.enlace ? (
+                        <Link
+                          href={lamina.enlace.href}
+                          className="inline-flex shrink-0 items-center gap-2 rounded-[var(--radius-sm)] bg-crema px-5 py-2.5 text-sm font-semibold text-brand-dark transition duration-300 ease-suave hover:-translate-y-0.5 hover:bg-white active:translate-y-0"
+                        >
+                          {lamina.enlace.etiqueta}
+                          {/* El mismo texto en todas las láminas: sin esto,
+                              quien navega por enlaces oye seis veces lo mismo. */}
+                          <span className="visually-hidden"> de {lamina.pie}</span>
+                          <ArrowRight aria-hidden="true" className="size-4" />
+                        </Link>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </div>

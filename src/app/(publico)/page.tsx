@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EnlaceBoton, Tarjeta } from "@/components/ui";
@@ -6,6 +7,11 @@ import { PortadaBeneficiario } from "@/components/foto-beneficiario";
 import { Carrusel, type Lamina } from "@/components/carrusel";
 import { SeccionConocenos } from "@/components/conocenos";
 import { calcularEdad } from "@/lib/fechas";
+import {
+  MAXIMO_HISTORIAS,
+  textoAlternativo,
+  urlImagenHistoria,
+} from "@/lib/historias";
 import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
 // Sin esto el conteo del cierre quedaría congelado en el momento del build.
@@ -35,7 +41,7 @@ const LAMINAS: Lamina[] = [
 ];
 
 export default async function LandingPage() {
-  const [sinPadrino, programas, esperando] = await Promise.all([
+  const [sinPadrino, programas, esperando, historias] = await Promise.all([
     prisma.beneficiario.count({
       where: { estado: "ACTIVO", padrinazgos: { none: { activo: true } } },
     }),
@@ -63,7 +69,32 @@ export default async function LandingPage() {
       take: 3,
       orderBy: { fechaIngreso: "asc" },
     }),
+    // Las historias que el equipo publica desde /admin/historias. La portada
+    // tiene seis espacios; se piden seis y no más aunque hubiera de sobra.
+    prisma.story.findMany({
+      where: { estado: "PUBLICADO" },
+      // La casilla manda. El desempate es el mismo que usa /admin/historias,
+      // para que la portada enseñe el orden que el panel promete.
+      orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+      take: MAXIMO_HISTORIAS,
+      select: {
+        id: true,
+        titulo: true,
+        resumen: true,
+        protagonista: true,
+        programa: true,
+        imagenUrl: true,
+        imagenArchivo: true,
+        imagenAlt: true,
+      },
+    }),
   ]);
+
+  // Una historia sin foto no se pinta: la tarjeta es la fotografía y su
+  // relato, y sola la mitad de texto desequilibra la cuadrícula.
+  const historiasConFoto = historias
+    .map((historia) => ({ ...historia, imagen: urlImagenHistoria(historia) }))
+    .filter((historia) => historia.imagen !== null);
 
   return (
     <>
@@ -244,6 +275,58 @@ export default async function LandingPage() {
           )}
         </div>
       </section>
+
+      {/* Historias de avance */}
+      {historiasConFoto.length > 0 ? (
+        <section
+          className="mx-auto max-w-6xl px-4 py-14 sm:py-20"
+          aria-labelledby="historias-titulo"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2
+                id="historias-titulo"
+                className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
+              >
+                Historias de avance
+              </h2>
+              <p className="medida-lectura mt-3 text-ink-soft">
+                Lo que ocurre cuando una terapia se sostiene en el tiempo,
+                contado por quienes acompañan cada paso.
+              </p>
+            </div>
+          </div>
+
+          <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {historiasConFoto.map((historia) => (
+              <li key={historia.id}>
+                <Tarjeta className="flex h-full flex-col overflow-hidden">
+                  <Image
+                    src={historia.imagen as string}
+                    alt={textoAlternativo(historia)}
+                    width={480}
+                    height={360}
+                    unoptimized
+                    className="aspect-[4/3] w-full bg-brand-sky object-cover"
+                  />
+                  <div className="flex flex-1 flex-col p-6">
+                    <h3 className="font-heading text-xl font-semibold text-ink">
+                      {historia.titulo}
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-brand-primary">
+                      {historia.protagonista}
+                      {historia.programa ? ` · ${historia.programa}` : ""}
+                    </p>
+                    <p className="medida-lectura mt-3 flex-1 text-sm text-ink-soft">
+                      {historia.resumen}
+                    </p>
+                  </div>
+                </Tarjeta>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* CTA final */}
       <section

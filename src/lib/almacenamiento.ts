@@ -16,6 +16,7 @@ const CARPETA_BENEFICIARIOS = "beneficiarios";
 const CARPETA_DOCUMENTOS = "documentos";
 const CARPETA_EVIDENCIAS = "evidencias";
 const CARPETA_BOLETAS = "boletas";
+const CARPETA_HISTORIAS = "historias";
 
 /**
  * Se resuelve en cada llamada para que un cambio de ALMACENAMIENTO_DIR surta
@@ -155,6 +156,17 @@ export function guardarFotoExpediente(archivo: File): Promise<ArchivoGuardado> {
   return guardar(archivo, CARPETA_EVIDENCIAS);
 }
 
+/**
+ * Foto de una historia de avance. Esta sí es material público —sale en la
+ * landing—, pero se guarda igual fuera de public/ por una razón práctica: el
+ * equipo la sube desde el panel y public/ es parte del árbol del despliegue,
+ * así que un redeploy se la llevaría por delante. La sirve
+ * /api/historias/[id]/imagen, que es quien decide si ya se puede enseñar.
+ */
+export function guardarImagenHistoria(archivo: File): Promise<ArchivoGuardado> {
+  return guardar(archivo, CARPETA_HISTORIAS);
+}
+
 /** Comprobante de una transferencia o un depósito. Lleva datos bancarios del
  *  donante, así que tampoco vive en public/: se sirve por /api/boletas/[id]. */
 export function guardarBoleta(archivo: File): Promise<ArchivoGuardado> {
@@ -252,6 +264,14 @@ export function leerFotoExpediente(nombre: string) {
 
 export function borrarFotoExpediente(nombre: string) {
   return borrar(nombre, CARPETA_EVIDENCIAS);
+}
+
+export function leerImagenHistoria(nombre: string) {
+  return leer(nombre, CARPETA_HISTORIAS);
+}
+
+export function borrarImagenHistoria(nombre: string) {
+  return borrar(nombre, CARPETA_HISTORIAS);
 }
 
 export function leerBoleta(nombre: string) {

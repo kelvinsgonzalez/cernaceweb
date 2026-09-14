@@ -604,18 +604,27 @@ model Campaign {
 // ---------------------------------------------------------------------------
 
 model Story {
-  id            String            @id @default(cuid())
-  titulo        String
-  slug          String            @unique
-  resumen       String
-  contenido     String
-  protagonista  String
-  programa      String?
-  imagenUrl     String?
-  estado        EstadoPublicacion @default(PUBLICADO)
-  publicadaEn   DateTime          @default(now())
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id           String            @id @default(cuid())
+  titulo       String
+  slug         String            @unique
+  resumen      String
+  contenido    String
+  protagonista String
+  programa     String?
+  /// Ruta estática bajo public/: es como llegaron las historias del seed.
+  imagenUrl    String?
+  /// Foto subida desde /admin/historias. Vive fuera de public/ y se sirve por
+  /// /api/historias/[id]/imagen; manda sobre `imagenUrl` cuando las dos están.
+  imagenArchivo  String?
+  imagenTipoMime String?
+  imagenAlt      String?
+  /// Posición en la franja de la landing: menor primero. La landing publica
+  /// seis como mucho (MAXIMO_HISTORIAS en src/lib/historias.ts).
+  orden        Int               @default(0)
+  estado       EstadoPublicacion @default(PUBLICADO)
+  publicadaEn  DateTime          @default(now())
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@map("historias")
 }

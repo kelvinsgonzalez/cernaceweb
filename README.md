@@ -102,7 +102,7 @@ Cámbialas antes de cualquier despliegue real.
 
 | # | Objetivo | Ruta | Notas |
 | --- | --- | --- | --- |
-| 1 | Sitio web institucional informativo | `/`, `/contacto` | Misión, programas, historias y contacto, todo leído de la base |
+| 1 | Sitio web institucional informativo | `/`, `/contacto`, `/historias/[slug]` | Misión, programas, historias y contacto, todo leído de la base |
 | 2 | Expedientes digitalizados y centralizados, con usuarios, roles y respaldo | `/admin/beneficiarios`, `/admin/beneficiarios/[id]`, `/admin/usuarios`, `/admin/auditoria` | Expediente con datos generales, clínico, socioeconómico, documentos, avances y bitácora |
 | 3 | Seguimiento con permisos para personal y padrinos | `/admin/beneficiarios/[id]/avance` y `/portal/[id]` | La casilla «visible para el padrino» decide qué se comparte |
 | 4 | Donativo depositado en el banco | `/donar` → `/donar/deposito` → `/donar/gracias/[id]` | Sin nombre ni correo: la cuenta, la boleta y a qué niño va dirigido |
@@ -111,7 +111,7 @@ Cámbialas antes de cualquier despliegue real.
 | 7 | Formulario de inscripción de padrinos | `/inscripcion/padrino` → `/admin/voluntarios` | |
 | 8 | Página pública de beneficiarios sin apoyo asignado | `/apadrina`, `/apadrina/[id]` | Solo primer nombre, edad y programa |
 | 9 | Panel de administrador | `/admin` y sus 16 secciones | |
-| 10 | Landing page institucional | `/` | Cifras, programas e historias reales de la base |
+| 10 | Landing page institucional | `/` | Cifras, programas e historias de avance; las historias se publican con foto desde las seis casillas de `/admin/historias` |
 
 ---
 
@@ -165,6 +165,24 @@ corriendo (no por inspección del código):
   `/admin/solicitudes`; una inscripción de padrino, en `/admin/voluntarios`.
 - Una fecha de nacimiento del 14/03/2018 se muestra como **14/03/2018**, no como
   13/03.
+- Las **historias de avance** se llevan desde `/admin/historias`, que enseña las
+  seis casillas de la portada estén llenas o vacías. Una casilla plegada muestra
+  su número, el título, el nombre del beneficiado, si está en la portada y cuándo
+  se modificó; los tres botones se ven siempre y el formulario aparece al pulsar
+  «Editar», que sirve para escribir la historia y para corregirla y cierra el de
+  la casilla anterior. Guardada con su fotografía, sale en la portada en esa
+  misma casilla y en el carrusel de `/donar`, y la foto se sirve sin sesión.
+  «Ocultar de la portada» no borra nada: la deja en su casilla, fuera del sitio,
+  y su foto pasa a devolver 404 a quien no gestiona contenido. «Vaciar casilla»
+  sí borra —fila y archivo— y devuelve la posición a vacía, dejando la entrada
+  en la bitácora. Una casilla vacía u oculta en medio no abre huecos: la portada
+  y el carrusel se arman con las historias visibles, así que con la 2 oculta y
+  la 5 vacía el carrusel enseñó cuatro láminas numeradas del 1 al 4.
+- Cada lámina del carrusel de `/donar` lleva, junto al texto, un botón que abre
+  el relato completo en `/historias/[slug]`. Esa página solo existe mientras la
+  historia esté a la vista: con la historia oculta —y con un slug inventado—
+  devuelve 404. Las láminas que no se ven son `inert`, así que tabular no lleva
+  al botón de una historia que está fuera de pantalla.
 - Los formularios públicos y el registro de avances funcionan **sin
   JavaScript**: las pruebas se hicieron replicando el POST de un navegador sin
   JS habilitado.
@@ -238,8 +256,11 @@ Lista honesta de lo que **no** está implementado:
 - **Edición de la ficha clínica y de la socioeconómica.** Solo los datos
   generales del expediente tienen formulario de edición; el resto se carga por
   seed o directamente en la base.
-- **Alta y edición de contenido.** Blog, eventos, historias y campañas son de
-  solo lectura en el panel.
+- **Alta y edición de contenido.** Blog, eventos y campañas son de solo lectura
+  en el panel. Las **historias de avance** sí se administran enteras desde
+  `/admin/historias`, en las seis casillas fijas de la portada: se publican, se
+  editan, se retiran y se eliminan, con su fotografía. Lo que todavía no hay es
+  reordenarlas: una historia se queda en la casilla donde se creó.
 - **Gestión de usuarios desde la interfaz.** `/admin/usuarios` muestra las
   cuentas y la matriz de permisos, pero no permite crear, editar ni desactivar
   cuentas todavía.

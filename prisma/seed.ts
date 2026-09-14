@@ -1588,6 +1588,9 @@ async function sembrarContenido() {
         protagonista: "Diego",
         programa: "Terapia física",
         imagenUrl: "/historias/diego.jpg",
+        imagenAlt:
+          "Diego cruza el patio del centro apoyando una sola mano en la baranda.",
+        orden: 1,
         estado: "PUBLICADO",
         publicadaEn: t("2026-05-02T10:00:00-06:00"),
       },
@@ -1601,6 +1604,9 @@ async function sembrarContenido() {
         protagonista: "Sofía",
         programa: "Terapia del lenguaje",
         imagenUrl: "/historias/sofia.jpg",
+        imagenAlt:
+          "Sofía levanta la mano en la ronda de saludos, sentada con sus compañeros.",
+        orden: 2,
         estado: "PUBLICADO",
         publicadaEn: t("2026-06-18T10:00:00-06:00"),
       },
@@ -1614,6 +1620,9 @@ async function sembrarContenido() {
         protagonista: "Kevin",
         programa: "Educación especial",
         imagenUrl: "/historias/kevin.jpg",
+        imagenAlt:
+          "Doña Otilia y su nieto Kevin repasan juntos el cuaderno de tareas ilustrado.",
+        orden: 3,
         estado: "PUBLICADO",
         publicadaEn: t("2026-07-09T10:00:00-06:00"),
       },

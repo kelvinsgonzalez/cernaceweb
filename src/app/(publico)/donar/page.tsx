@@ -4,6 +4,11 @@ import Link from "next/link";
 import { ArrowRight, Building2, CreditCard } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Carrusel, type Lamina } from "@/components/carrusel";
+import {
+  MAXIMO_HISTORIAS,
+  textoAlternativo,
+  urlImagenHistoria,
+} from "@/lib/historias";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -18,27 +23,39 @@ export default async function DonarPage() {
   // El carrusel enseña las mismas historias que publica el equipo desde
   // /admin/historias: cambiarlas no obliga a tocar esta página.
   const historias = await prisma.story.findMany({
-    where: { estado: "PUBLICADO", imagenUrl: { not: null } },
-    orderBy: { publicadaEn: "desc" },
+    where: { estado: "PUBLICADO" },
+    // El mismo orden que la portada: la historia que allí abre, aquí también.
+    orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+    take: MAXIMO_HISTORIAS,
     select: {
       id: true,
       titulo: true,
       resumen: true,
       protagonista: true,
       imagenUrl: true,
+      imagenArchivo: true,
+      imagenAlt: true,
+      slug: true,
     },
   });
 
   const laminas: Lamina[] = historias
-    // next/image solo tiene configurado el dominio propio: una URL externa
-    // guardada a mano en la historia reventaría la página entera.
-    .filter((historia) => historia.imagenUrl?.startsWith("/"))
-    .map((historia) => ({
-      src: historia.imagenUrl as string,
-      alt: `Fotografía de ${historia.protagonista}`,
+    .map((historia) => ({ historia, imagen: urlImagenHistoria(historia) }))
+    // Sin foto no hay lámina que enseñar. `urlImagenHistoria` también descarta
+    // una URL externa guardada a mano: next/image solo tiene configurado el
+    // dominio propio y reventaría la página entera.
+    .filter((fila) => fila.imagen !== null)
+    .map(({ historia, imagen }) => ({
+      src: imagen as string,
+      alt: textoAlternativo(historia),
       pie: historia.titulo,
       titulo: historia.titulo,
+      // En la lámina cabe el relato breve; el largo se lee en su página.
       texto: historia.resumen,
+      enlace: {
+        href: `/historias/${historia.slug}`,
+        etiqueta: "Ver la historia completa",
+      },
     }));
 
   return (
