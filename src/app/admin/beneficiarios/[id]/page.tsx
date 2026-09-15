@@ -24,13 +24,12 @@ import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso, tienePermiso } from "@/lib/sesion";
 import { comentarAvance, eliminarDocumento } from "../acciones";
 import { FormularioComentario } from "./comentarios";
+import { EstadosCabecera } from "./estados";
 import { PERMISOS } from "@/lib/rbac";
 import {
   AccesoRestringido,
   Campo,
   Chip,
-  ChipEstadoBeneficiario,
-  ChipEstadoExpediente,
   ChipVulnerabilidad,
   EnlaceBoton,
   Progreso,
@@ -282,18 +281,24 @@ export default async function ExpedientePage({
               <p className="font-mono text-xs text-ink-soft">
                 {beneficiario.codigoExpediente}
               </p>
-              <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
-                {nombreCompleto}
-              </h1>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <ChipEstadoBeneficiario estado={beneficiario.estado} />
-                <ChipEstadoExpediente estado={beneficiario.estadoExpediente} />
-                <Chip tono="info">{beneficiario.programa.nombre}</Chip>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
+                  {nombreCompleto}
+                </h1>
                 {padrinazgo ? (
                   <Chip tono="ok">Padrino: {padrinazgo.padrino.nombre}</Chip>
                 ) : (
                   <Chip tono="warn">Sin padrino asignado</Chip>
                 )}
+              </div>
+              {/* Los dos estados se cambian aquí mismo: el chip es el botón. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <EstadosCabecera
+                  id={beneficiario.id}
+                  estado={beneficiario.estado}
+                  estadoExpediente={beneficiario.estadoExpediente}
+                  editable={puedeEditar}
+                />
               </div>
             </div>
           </div>
@@ -403,6 +408,9 @@ export default async function ExpedientePage({
                   {formatFecha(beneficiario.fechaIngreso)}
                 </Campo>
                 <Campo etiqueta="Programa">{beneficiario.programa.nombre}</Campo>
+                <Campo etiqueta="Centro de atención">
+                  {beneficiario.centroAtencion}
+                </Campo>
                 <Campo etiqueta="Encargado">{beneficiario.encargado?.nombre}</Campo>
                 <Campo etiqueta="Parentesco">
                   {beneficiario.encargado?.parentesco}

@@ -368,6 +368,11 @@ const esquemaAceptacion = z.object({
   telefono: opcional,
   solicitaPatrocinio: z.string().optional(),
   programaId: z.string().min(1, "Elige el programa al que ingresa."),
+  centroAtencion: z
+    .string()
+    .trim()
+    .min(2, "Indica el centro donde recibirá la terapia.")
+    .max(60, "El nombre del centro es demasiado largo."),
   fechaIngreso: fecha,
 
   // Encargado
@@ -511,6 +516,7 @@ export async function aceptarSolicitud(
         solicitaPatrocinio: v.solicitaPatrocinio === "on",
         fechaIngreso: fechaDesdeInput(v.fechaIngreso),
         programaId: programa.id,
+        centroAtencion: v.centroAtencion,
         encargadoId: encargado.id,
       },
       select: { id: true },

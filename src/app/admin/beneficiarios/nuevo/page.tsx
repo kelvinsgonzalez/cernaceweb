@@ -8,6 +8,7 @@ import { Tarjeta } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { fechaParaInput } from "@/lib/fechas";
 import { siguienteCodigo } from "@/lib/expedientes";
+import { CENTRO_PREDETERMINADO } from "@/lib/centros";
 import { crearBeneficiario } from "../acciones";
 import { FormularioEditar } from "../[id]/editar/formulario";
 
@@ -82,6 +83,7 @@ export default async function NuevoBeneficiarioPage() {
             encargadoIntegrantes: "",
             encargadoDireccion: "",
             programaId: programas[0]?.id ?? "",
+            centroAtencion: CENTRO_PREDETERMINADO,
             solicitaPatrocinio: false,
             estado: "ACTIVO",
             estadoExpediente: "INCOMPLETO",

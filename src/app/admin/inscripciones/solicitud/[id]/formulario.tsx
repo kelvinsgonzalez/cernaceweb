@@ -8,6 +8,7 @@ import {
   CampoTexto,
   MensajeFormulario,
 } from "@/components/ui";
+import { CampoCentro } from "@/components/campo-centro";
 import { ESTADO_INICIAL, type EstadoFormulario } from "@/lib/formularios";
 import { DEPARTAMENTOS } from "@/lib/guatemala";
 
@@ -24,6 +25,7 @@ export type ValoresPapeleta = {
   sector: string;
   telefono: string;
   programaId: string;
+  centroAtencion: string;
   fechaIngreso: string;
   encargadoNombre: string;
   encargadoParentesco: string;
@@ -193,6 +195,11 @@ export function FormularioPapeleta({
             </option>
           ))}
         </CampoSelect>
+        <CampoCentro
+          defaultValue={valores.centroAtencion}
+          error={e.centroAtencion}
+          ayuda="Donde recibirá la terapia: San Pedro o Posonicapa, en Cuilco."
+        />
         <CampoTexto
           id="fechaIngreso"
           name="fechaIngreso"

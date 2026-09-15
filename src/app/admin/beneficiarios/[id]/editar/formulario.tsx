@@ -7,6 +7,7 @@ import {
   CampoTexto,
   MensajeFormulario,
 } from "@/components/ui";
+import { CampoCentro } from "@/components/campo-centro";
 import { ESTADO_INICIAL, type EstadoFormulario } from "@/lib/formularios";
 
 export type ValoresBeneficiario = {
@@ -43,6 +44,7 @@ export type ValoresBeneficiario = {
   encargadoIntegrantes: string;
   encargadoDireccion: string;
   programaId: string;
+  centroAtencion: string;
   solicitaPatrocinio: boolean;
   estado: string;
   estadoExpediente: string;
@@ -369,6 +371,10 @@ export function FormularioEditar({
             </option>
           ))}
         </CampoSelect>
+        <CampoCentro
+          defaultValue={valores.centroAtencion}
+          error={e.centroAtencion}
+        />
         <CampoSelect
           id="estado"
           name="estado"

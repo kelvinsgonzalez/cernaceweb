@@ -91,6 +91,7 @@ export default async function EditarPage({
               beneficiario.encargado?.integrantesFamilia?.toString() ?? "",
             encargadoDireccion: beneficiario.encargado?.direccion ?? "",
             programaId: beneficiario.programaId,
+            centroAtencion: beneficiario.centroAtencion,
             solicitaPatrocinio: beneficiario.solicitaPatrocinio,
             estado: beneficiario.estado,
             estadoExpediente: beneficiario.estadoExpediente,

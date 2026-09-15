@@ -9,6 +9,7 @@ import { Campo, Tarjeta, TarjetaCabecera } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { calcularEdad, fechaParaInput, formatFecha } from "@/lib/fechas";
 import { siguienteCodigo } from "@/lib/expedientes";
+import { CENTRO_PREDETERMINADO } from "@/lib/centros";
 import { FormularioPapeleta } from "./formulario";
 import { aceptarSolicitud } from "../../acciones";
 
@@ -119,6 +120,7 @@ export default async function PapeletaPage({
               sector: "",
               telefono: solicitud.encargadoTelefono,
               programaId: pedido?.id ?? "",
+              centroAtencion: CENTRO_PREDETERMINADO,
               fechaIngreso: hoy,
               encargadoNombre: solicitud.encargadoNombre,
               encargadoParentesco: solicitud.encargadoParentesco,

@@ -184,6 +184,10 @@ model Beneficiario {
   userId            String?            @unique
   fechaIngreso      DateTime           @db.Date
   programaId        String
+  /// Centro donde recibe la terapia. CERNACE atiende en dos centros de apoyo
+  /// del municipio de Cuilco, Huehuetenango: San Pedro y Posonicapa. Es texto
+  /// libre para poder abrir otro sin migración; el predeterminado es San Pedro.
+  centroAtencion    String             @default("San Pedro")
   estado            EstadoBeneficiario @default(ACTIVO)
   estadoExpediente  EstadoExpediente   @default(EN_REVISION)
   /// Lo pide la familia al inscribirse: quiere que se le busque patrocinador.

@@ -1,23 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Filter,
-  FilePlus2,
-  Search,
-  TriangleAlert,
-  UserCheck,
-  UserX,
-  Users,
-} from "lucide-react";
+import { Filter, FilePlus2, Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import {
   Boton,
+  Chip,
   ChipEstadoBeneficiario,
   ChipEstadoExpediente,
   EnlaceBoton,
-  Kpi,
   Tarjeta,
 } from "@/components/ui";
 import {
@@ -28,6 +20,17 @@ import {
   Tabla,
 } from "@/components/admin/estructura";
 import { calcularEdad, formatFecha } from "@/lib/fechas";
+import {
+  fechaLimiteSinTerapia,
+  filtroSinTerapiaReciente,
+  mesesSinTerapia,
+  sinTerapiaReciente,
+} from "@/lib/alertas";
+import {
+  ResumenBeneficiarios,
+  type ClaveAlerta,
+  type FilaResumen,
+} from "./resumen";
 
 export const metadata: Metadata = { title: "Beneficiarios" };
 
@@ -37,23 +40,53 @@ const COLUMNAS = [
   "Expediente",
   "Nombre",
   "Edad",
-  "Programa",
+  "Última terapia",
+  "Centro",
   "Padrino",
   "Estado",
   "Expediente",
   "",
 ];
 
+const CLAVES_ALERTA: ClaveAlerta[] = [
+  "con-padrino",
+  "sin-padrino",
+  "incompletos",
+  "sin-terapia",
+];
+
+function esClaveAlerta(valor: string | undefined): valor is ClaveAlerta {
+  return CLAVES_ALERTA.includes(valor as ClaveAlerta);
+}
+
 export default async function BeneficiariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; programa?: string; estado?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    programa?: string;
+    estado?: string;
+    alerta?: string;
+  }>;
 }) {
   const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
   const puedeAbrir = tienePermiso(usuario, PERMISOS.EXPEDIENTE_ESCRIBIR);
-  const { q, programa, estado } = await searchParams;
+  const { q, programa, estado, alerta } = await searchParams;
 
   const busqueda = q?.trim() ?? "";
+  const alertaActiva = esClaveAlerta(alerta) ? alerta : null;
+
+  const meses = await mesesSinTerapia();
+  const limite = fechaLimiteSinTerapia(meses);
+
+  // Cada fila del resumen es también un filtro: la misma condición sirve para
+  // contar y para listar, así el número y la tabla no se contradicen.
+  const filtrosAlerta: Record<ClaveAlerta, object> = {
+    "con-padrino": { padrinazgos: { some: { activo: true } } },
+    "sin-padrino": { padrinazgos: { none: { activo: true } } },
+    incompletos: { estadoExpediente: { not: "COMPLETO" } },
+    "sin-terapia": filtroSinTerapiaReciente(limite),
+  };
 
   const filtros = {
     ...(busqueda
@@ -74,30 +107,73 @@ export default async function BeneficiariosPage({
     ...(estado
       ? { estado: estado as "ACTIVO" | "INACTIVO" | "EGRESADO" }
       : {}),
+    ...(alertaActiva ? filtrosAlerta[alertaActiva] : {}),
   };
 
-  const [total, conPadrino, sinPadrino, incompletos, programas, beneficiarios] =
-    await Promise.all([
-      prisma.beneficiario.count(),
-      prisma.beneficiario.count({ where: { padrinazgos: { some: { activo: true } } } }),
-      prisma.beneficiario.count({ where: { padrinazgos: { none: { activo: true } } } }),
-      prisma.beneficiario.count({ where: { estadoExpediente: { not: "COMPLETO" } } }),
-      prisma.programa.findMany({
-        orderBy: { nombre: "asc" },
-        select: { id: true, nombre: true },
-      }),
-      prisma.beneficiario.findMany({
-        where: filtros,
-        orderBy: { codigoExpediente: "asc" },
-        include: {
-          programa: { select: { nombre: true } },
-          padrinazgos: {
-            where: { activo: true },
-            select: { padrino: { select: { nombre: true } } },
-          },
+  const [
+    total,
+    conPadrino,
+    sinPadrino,
+    incompletos,
+    sinTerapia,
+    programas,
+    beneficiarios,
+  ] = await Promise.all([
+    prisma.beneficiario.count(),
+    prisma.beneficiario.count({ where: filtrosAlerta["con-padrino"] }),
+    prisma.beneficiario.count({ where: filtrosAlerta["sin-padrino"] }),
+    prisma.beneficiario.count({ where: filtrosAlerta.incompletos }),
+    prisma.beneficiario.count({ where: filtrosAlerta["sin-terapia"] }),
+    prisma.programa.findMany({
+      orderBy: { nombre: "asc" },
+      select: { id: true, nombre: true },
+    }),
+    prisma.beneficiario.findMany({
+      where: filtros,
+      orderBy: { codigoExpediente: "asc" },
+      include: {
+        programa: { select: { nombre: true } },
+        padrinazgos: {
+          where: { activo: true },
+          select: { padrino: { select: { nombre: true } } },
         },
-      }),
-    ]);
+        // El último avance es la evidencia de la última terapia recibida.
+        seguimientos: {
+          orderBy: { fecha: "desc" },
+          take: 1,
+          select: { fecha: true },
+        },
+      },
+    }),
+  ]);
+
+  const filasResumen: FilaResumen[] = [
+    { clave: null, etiqueta: "Total", valor: total },
+    { clave: "con-padrino", etiqueta: "Con padrino", valor: conPadrino },
+    {
+      clave: "sin-padrino",
+      etiqueta: "Sin padrino",
+      valor: sinPadrino,
+      tono: "aviso",
+    },
+    {
+      clave: "incompletos",
+      etiqueta: "Expedientes incompletos",
+      detalle: "En revisión o incompletos.",
+      valor: incompletos,
+      tono: "aviso",
+    },
+    {
+      clave: "sin-terapia",
+      etiqueta: `Sin terapia en ${meses} meses`,
+      detalle: `Activos inscritos antes del ${formatFecha(limite)} y sin ningún avance desde entonces.`,
+      valor: sinTerapia,
+      tono: "aviso",
+    },
+  ];
+
+  const etiquetaAlerta = filasResumen.find((f) => f.clave === alertaActiva);
+  const hayFiltros = Boolean(busqueda || programa || estado || alertaActiva);
 
   return (
     <>
@@ -105,37 +181,25 @@ export default async function BeneficiariosPage({
         titulo="Beneficiarios"
         descripcion="Expedientes digitalizados y centralizados. Cada apertura queda registrada en la bitácora."
         acciones={
-          puedeAbrir ? (
-            <EnlaceBoton href="/admin/beneficiarios/nuevo">
-              <FilePlus2 aria-hidden="true" className="size-4" />
-              Nuevo expediente
-            </EnlaceBoton>
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            <ResumenBeneficiarios filas={filasResumen} activa={alertaActiva} />
+            {puedeAbrir ? (
+              <EnlaceBoton href="/admin/beneficiarios/nuevo">
+                <FilePlus2 aria-hidden="true" className="size-4" />
+                Nuevo expediente
+              </EnlaceBoton>
+            ) : null}
+          </div>
         }
       />
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi etiqueta="Total" valor={total} icono={<Users className="size-5" />} />
-        <Kpi
-          etiqueta="Con padrino"
-          valor={conPadrino}
-          icono={<UserCheck className="size-5" />}
-        />
-        <Kpi
-          etiqueta="Sin padrino"
-          valor={sinPadrino}
-          icono={<UserX className="size-5" />}
-        />
-        <Kpi
-          etiqueta="Expedientes incompletos"
-          valor={incompletos}
-          icono={<TriangleAlert className="size-5" />}
-        />
-      </div>
-
       {/* Filtros con formulario GET: funcionan sin JavaScript. */}
-      <Tarjeta className="mt-8 p-5">
+      <Tarjeta className="p-5">
         <form method="get" className="flex flex-wrap items-end gap-4">
+          {/* El filtro del resumen se conserva al buscar o filtrar por programa. */}
+          {alertaActiva ? (
+            <input type="hidden" name="alerta" value={alertaActiva} />
+          ) : null}
           <div className="flex min-w-56 flex-1 flex-col gap-1.5">
             <label htmlFor="q" className="text-sm font-semibold text-ink">
               Buscar
@@ -193,7 +257,7 @@ export default async function BeneficiariosPage({
             <Filter aria-hidden="true" className="size-4" />
             Filtrar
           </Boton>
-          {busqueda || programa || estado ? (
+          {hayFiltros ? (
             <EnlaceBoton href="/admin/beneficiarios" variante="suave">
               Limpiar
             </EnlaceBoton>
@@ -201,17 +265,27 @@ export default async function BeneficiariosPage({
         </form>
       </Tarjeta>
 
-      <p className="mt-6 flex items-center gap-2 text-sm text-ink-soft" role="status">
-        <Search aria-hidden="true" className="size-4" />
-        {beneficiarios.length}{" "}
-        {beneficiarios.length === 1
-          ? "expediente encontrado"
-          : "expedientes encontrados"}
-      </p>
+      <div
+        className="mt-6 flex flex-wrap items-center gap-3 text-sm text-ink-soft"
+        role="status"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Search aria-hidden="true" className="size-4" />
+          {beneficiarios.length}{" "}
+          {beneficiarios.length === 1
+            ? "expediente encontrado"
+            : "expedientes encontrados"}
+        </span>
+        {etiquetaAlerta ? (
+          <Chip tono={etiquetaAlerta.tono === "aviso" ? "warn" : "info"}>
+            Filtro: {etiquetaAlerta.etiqueta}
+          </Chip>
+        ) : null}
+      </div>
 
       <div className="mt-3">
         <Tabla
-          caption="Listado de beneficiarios con su programa, padrino asignado y estado del expediente"
+          caption="Listado de beneficiarios con su última terapia, centro de atención, padrino asignado y estado del expediente"
           columnas={COLUMNAS}
         >
           {beneficiarios.length === 0 ? (
@@ -223,17 +297,41 @@ export default async function BeneficiariosPage({
             beneficiarios.map((b) => {
               const nombreCompleto = `${b.nombres} ${b.apellidos}`;
               const padrino = b.padrinazgos[0]?.padrino.nombre;
+              const ultimoAvance = b.seguimientos[0]?.fecha ?? null;
+              const enAlerta = sinTerapiaReciente(b, ultimoAvance, limite);
               return (
                 <Fila key={b.id}>
                   <Celda className="font-mono text-xs">{b.codigoExpediente}</Celda>
                   <Celda>
                     <span className="font-medium">{nombreCompleto}</span>
-                    <span className="block text-xs text-ink-soft">
-                      Ingresó el {formatFecha(b.fechaIngreso)}
-                    </span>
                   </Celda>
                   <Celda>{calcularEdad(b.fechaNacimiento)} años</Celda>
-                  <Celda>{b.programa.nombre}</Celda>
+                  <Celda>
+                    {/* La última terapia es el último avance registrado. */}
+                    {ultimoAvance ? (
+                      <span
+                        className={
+                          enAlerta ? "font-medium text-warn-fg" : undefined
+                        }
+                      >
+                        {formatFecha(ultimoAvance)}
+                      </span>
+                    ) : (
+                      <span
+                        className={
+                          enAlerta ? "font-medium text-warn-fg" : "text-ink-soft"
+                        }
+                      >
+                        Sin avances
+                      </span>
+                    )}
+                    {enAlerta ? (
+                      <span className="block text-xs text-warn-fg">
+                        Más de {meses} meses
+                      </span>
+                    ) : null}
+                  </Celda>
+                  <Celda>{b.centroAtencion}</Celda>
                   <Celda>
                     {padrino ?? (
                       <span className="text-ink-soft">Sin asignar</span>

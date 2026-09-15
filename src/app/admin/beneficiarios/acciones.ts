@@ -82,6 +82,11 @@ const esquemaDatosGenerales = z.object({
   encargadoDireccion: opcional,
   fechaIngreso: fecha,
   programaId: z.string().min(1, "Selecciona un programa."),
+  centroAtencion: z
+    .string()
+    .trim()
+    .min(2, "Indica el centro donde recibe la terapia.")
+    .max(60, "El nombre del centro es demasiado largo."),
   solicitaPatrocinio: z.string().optional(),
   estado: z.enum(["ACTIVO", "INACTIVO", "EGRESADO"]),
   estadoExpediente: z.enum(["COMPLETO", "EN_REVISION", "INCOMPLETO"]),
@@ -127,6 +132,7 @@ function datosDelBeneficiario(v: z.infer<typeof esquemaDatosGenerales>) {
     telefono: v.telefono || null,
     fechaIngreso: fechaDesdeInput(v.fechaIngreso),
     programaId: v.programaId,
+    centroAtencion: v.centroAtencion,
     solicitaPatrocinio: v.solicitaPatrocinio === "on",
     estado: v.estado,
     estadoExpediente: v.estadoExpediente,
@@ -1321,4 +1327,98 @@ export async function eliminarFotoAvance(datos: FormData): Promise<void> {
   });
 
   revalidatePath(`/admin/beneficiarios/${foto.seguimiento.beneficiarioId}`);
+}
+
+/* -------------------------------------------------------------------------
+   Cambio rápido de estado desde la cabecera del expediente
+   ------------------------------------------------------------------------- */
+
+/**
+ * Los dos estados del expediente se cambian desde la propia cabecera, sin
+ * pasar por «Editar datos»: dar un expediente por completo o a un niño por
+ * inactivo es una decisión de un clic, no una corrección de ficha. Cada cambio
+ * queda en la bitácora con el valor anterior y el nuevo.
+ */
+const ETIQUETA_ESTADO_BENEFICIARIO = {
+  ACTIVO: "Activo",
+  INACTIVO: "Inactivo",
+  EGRESADO: "Egresado",
+} as const;
+
+const ETIQUETA_ESTADO_EXPEDIENTE = {
+  COMPLETO: "Completo",
+  EN_REVISION: "En revisión",
+  INCOMPLETO: "Incompleto",
+} as const;
+
+const esquemaEstadoBeneficiario = z.object({
+  id: z.string().min(1),
+  estado: z.enum(["ACTIVO", "INACTIVO", "EGRESADO"]),
+});
+
+const esquemaEstadoExpediente = z.object({
+  id: z.string().min(1),
+  estadoExpediente: z.enum(["COMPLETO", "EN_REVISION", "INCOMPLETO"]),
+});
+
+function refrescarExpediente(id: string) {
+  revalidatePath(`/admin/beneficiarios/${id}`);
+  revalidatePath("/admin/beneficiarios");
+  // La galería pública solo enseña activos.
+  revalidatePath("/apadrina");
+}
+
+export async function cambiarEstadoBeneficiario(datos: FormData) {
+  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
+
+  const parseo = esquemaEstadoBeneficiario.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) return;
+  const { id, estado } = parseo.data;
+
+  const actual = await prisma.beneficiario.findUnique({
+    where: { id },
+    select: { estado: true, codigoExpediente: true },
+  });
+  if (!actual || actual.estado === estado) return;
+
+  await prisma.beneficiario.update({ where: { id }, data: { estado } });
+
+  await registrarAuditoria({
+    actor: usuario.email,
+    accion: "ACTUALIZAR",
+    entidad: "Beneficiario",
+    entidadId: id,
+    detalle: `Estado del beneficiario ${actual.codigoExpediente}: de ${ETIQUETA_ESTADO_BENEFICIARIO[actual.estado]} a ${ETIQUETA_ESTADO_BENEFICIARIO[estado]}`,
+  });
+
+  refrescarExpediente(id);
+}
+
+export async function cambiarEstadoExpediente(datos: FormData) {
+  const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
+
+  const parseo = esquemaEstadoExpediente.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) return;
+  const { id, estadoExpediente } = parseo.data;
+
+  const actual = await prisma.beneficiario.findUnique({
+    where: { id },
+    select: { estadoExpediente: true, codigoExpediente: true },
+  });
+  if (!actual || actual.estadoExpediente === estadoExpediente) return;
+
+  await prisma.beneficiario.update({
+    where: { id },
+    data: { estadoExpediente },
+  });
+
+  await registrarAuditoria({
+    actor: usuario.email,
+    accion: "ACTUALIZAR",
+    entidad: "Beneficiario",
+    entidadId: id,
+    detalle: `Estado del expediente ${actual.codigoExpediente}: de ${ETIQUETA_ESTADO_EXPEDIENTE[actual.estadoExpediente]} a ${ETIQUETA_ESTADO_EXPEDIENTE[estadoExpediente]}`,
+  });
+
+  refrescarExpediente(id);
 }
