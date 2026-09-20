@@ -30,6 +30,11 @@ const esquemaNuevo = z
     nombre: z.string().trim().min(3, "Escribe el nombre completo."),
     email: z.email("Escribe un correo válido."),
     cargo: z.string().trim().max(120, "El cargo es demasiado largo.").optional(),
+    curriculum: z
+      .string()
+      .trim()
+      .max(1500, "El currículum breve no puede pasar de 1500 caracteres.")
+      .optional(),
     password: contrasena,
     passwordConfirmacion: z.string(),
   })
@@ -42,6 +47,11 @@ const esquemaEdicion = z.object({
   id: z.string().min(1),
   nombre: z.string().trim().min(3, "Escribe el nombre completo."),
   cargo: z.string().trim().max(120, "El cargo es demasiado largo.").optional(),
+  curriculum: z
+    .string()
+    .trim()
+    .max(1500, "El currículum breve no puede pasar de 1500 caracteres.")
+    .optional(),
 });
 
 const esquemaContrasena = z
@@ -133,6 +143,7 @@ export async function crearTerapeuta(
       email,
       passwordHash,
       cargo: v.cargo || "Terapeuta",
+      curriculum: v.curriculum || null,
       roles: { create: [{ role: { connect: { clave: ROLES.TERAPEUTA } } }] },
     },
     select: { id: true },
@@ -147,7 +158,7 @@ export async function crearTerapeuta(
   });
 
   revalidatePath("/admin/terapeutas");
-  revalidatePath("/admin/terapia");
+  revalidatePath("/admin/beneficiarios");
   revalidatePath("/admin/usuarios");
 
   return {
@@ -175,7 +186,11 @@ export async function actualizarTerapeuta(
 
   await prisma.user.update({
     where: { id: terapeuta.id },
-    data: { nombre: v.nombre, cargo: v.cargo || "Terapeuta" },
+    data: {
+      nombre: v.nombre,
+      cargo: v.cargo || "Terapeuta",
+      curriculum: v.curriculum || null,
+    },
   });
 
   await registrarAuditoria({
@@ -188,7 +203,7 @@ export async function actualizarTerapeuta(
 
   revalidatePath("/admin/terapeutas");
   revalidatePath(`/admin/terapeutas/${terapeuta.id}`);
-  revalidatePath("/admin/terapia");
+  revalidatePath("/admin/beneficiarios");
 
   return { ok: "Cambios guardados." };
 }
@@ -238,12 +253,12 @@ export async function cambiarEstadoTerapeuta(
 
   revalidatePath("/admin/terapeutas");
   revalidatePath(`/admin/terapeutas/${id}`);
-  revalidatePath("/admin/terapia");
+  revalidatePath("/admin/beneficiarios");
   revalidatePath("/admin/usuarios");
 
   if (activar) {
     return {
-      ok: "Cuenta reactivada. Vuélvele a asignar sus casos desde Terapia.",
+      ok: "Cuenta reactivada. Vuélvele a asignar sus casos desde el expediente de cada niño.",
     };
   }
 
@@ -251,7 +266,7 @@ export async function cambiarEstadoTerapeuta(
     ok:
       cerrados === 0
         ? "Cuenta desactivada."
-        : `Cuenta desactivada. Se cerraron ${cerrados} ${cerrados === 1 ? "caso que llevaba" : "casos que llevaba"}: reasígnalos desde Terapia.`,
+        : `Cuenta desactivada. Se cerraron ${cerrados} ${cerrados === 1 ? "caso que llevaba" : "casos que llevaba"}: reasígnalos desde el expediente de cada niño.`,
   };
 }
 

@@ -297,20 +297,25 @@ export function FormularioInscripcion({
           defaultValue={valores.referidoPor}
           error={e.referidoPor}
         />
-        <CampoSelect
+        <CampoTexto
           id="areaServicio"
           name="areaServicio"
           etiqueta="Área de servicio"
+          ayuda={
+            areas.length > 0
+              ? "Se sugieren las terapias anotadas en el expediente."
+              : "La terapia o el área en la que ingresa este ciclo."
+          }
+          list="areaServicio-opciones"
           defaultValue={valores.areaServicio}
           error={e.areaServicio}
-        >
-          <option value="">Sin asignar</option>
+          autoComplete="off"
+        />
+        <datalist id="areaServicio-opciones">
           {areas.map((area) => (
-            <option key={area} value={area}>
-              {area}
-            </option>
+            <option key={area} value={area} />
           ))}
-        </CampoSelect>
+        </datalist>
         <CampoTexto
           id="responsableInscripcion"
           name="responsableInscripcion"

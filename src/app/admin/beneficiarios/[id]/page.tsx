@@ -22,8 +22,19 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso, tienePermiso } from "@/lib/sesion";
-import { comentarAvance, eliminarDocumento } from "../acciones";
+import {
+  actualizarDocumento,
+  actualizarTerapia,
+  agregarTerapia,
+  comentarAvance,
+  eliminarDocumento,
+  eliminarTerapia,
+  subirDocumento,
+} from "../acciones";
 import { FormularioComentario } from "./comentarios";
+import { CATEGORIAS_DOCUMENTO, FormularioDocumento } from "./documentos";
+import { FormularioTerapia } from "./terapias";
+import { TAMANO_MAXIMO_DOCUMENTO } from "@/lib/almacenamiento";
 import { EstadosCabecera } from "./estados";
 import { PERMISOS } from "@/lib/rbac";
 import {
@@ -39,12 +50,12 @@ import {
 } from "@/components/ui";
 import { Celda, Fila, FilaVacia, Tabla } from "@/components/admin/estructura";
 import {
-  EnlaceMenu,
   MenuAcciones,
   OpcionConfirmada,
 } from "@/components/admin/menu-acciones";
 import {
   calcularEdad,
+  fechaParaInput,
   formatFecha,
   formatFechaHora,
   formatQuetzales,
@@ -75,6 +86,7 @@ export async function generateMetadata({
 
 const SECCIONES = [
   { id: "generales", etiqueta: "Datos generales" },
+  { id: "terapias", etiqueta: "Terapias" },
   { id: "fotografias", etiqueta: "Fotografías" },
   { id: "inscripciones", etiqueta: "Inscripciones" },
   { id: "clinico", etiqueta: "Expediente clínico" },
@@ -118,11 +130,15 @@ export default async function ExpedientePage({
   const puedePublicar = tienePermiso(usuario, PERMISOS.GALERIA_PUBLICAR);
   const puedeSubirDocumentos = tienePermiso(usuario, PERMISOS.DOCUMENTOS_SUBIR);
   const puedeDarAcceso = tienePermiso(usuario, PERMISOS.BENEFICIARIO_ACCESO);
+  const puedeTerapias = puedeEditar || puedeEditarClinico;
 
   const beneficiario = await prisma.beneficiario.findUnique({
     where: { id },
     include: {
-      programa: { select: { nombre: true } },
+      terapias: {
+        orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+        select: { id: true, nombre: true, detalle: true },
+      },
       encargado: true,
       plan: true,
       responsables: {
@@ -407,7 +423,6 @@ export default async function ExpedientePage({
                 <Campo etiqueta="Fecha de ingreso">
                   {formatFecha(beneficiario.fechaIngreso)}
                 </Campo>
-                <Campo etiqueta="Programa">{beneficiario.programa.nombre}</Campo>
                 <Campo etiqueta="Centro de atención">
                   {beneficiario.centroAtencion}
                 </Campo>
@@ -435,6 +450,92 @@ export default async function ExpedientePage({
                   {formatFechaHora(beneficiario.updatedAt)}
                 </Campo>
               </dl>
+            </Tarjeta>
+          </section>
+
+          {/* Terapias */}
+          <section id="terapias" aria-labelledby="terapias-titulo">
+            <Tarjeta>
+              <TarjetaCabecera
+                id="terapias-titulo"
+                titulo="Terapias"
+                descripcion="Lo que recibe este niño, en palabras del equipo. Los nombres salen en el sitio si está publicado; la explicación queda para el equipo y la familia."
+                icono={<HeartPulse className="size-5" />}
+                acciones={
+                  <Chip tono="neutro">
+                    {beneficiario.terapias.length}{" "}
+                    {beneficiario.terapias.length === 1 ? "terapia" : "terapias"}
+                  </Chip>
+                }
+              />
+              {beneficiario.terapias.length === 0 ? (
+                <Vacio mensaje="Todavía no hay terapias anotadas en este expediente." />
+              ) : (
+                <ul className="divide-y divide-line">
+                  {beneficiario.terapias.map((terapia) => (
+                    <li key={terapia.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">{terapia.nombre}</p>
+                          {terapia.detalle ? (
+                            <p className="medida-lectura mt-1 whitespace-pre-line text-sm text-ink-soft">
+                              {terapia.detalle}
+                            </p>
+                          ) : null}
+                        </div>
+                        {puedeTerapias ? (
+                          <MenuAcciones
+                            id={terapia.id}
+                            etiqueta={`Acciones de ${terapia.nombre}`}
+                            titulo={terapia.nombre}
+                          >
+                            <OpcionConfirmada
+                              menu={terapia.id}
+                              tono="peligro"
+                              etiqueta="Quitar"
+                              mensaje="La terapia desaparece del expediente y del sitio público. Los avances registrados no se tocan."
+                              confirmar="Sí, quitar"
+                              accion={eliminarTerapia}
+                            >
+                              <input type="hidden" name="id" value={terapia.id} />
+                            </OpcionConfirmada>
+                          </MenuAcciones>
+                        ) : null}
+                      </div>
+                      {puedeTerapias ? (
+                        <details className="mt-3">
+                          <summary className="cursor-pointer text-sm font-semibold text-brand-dark hover:underline">
+                            Corregir
+                            <span className="visually-hidden"> {terapia.nombre}</span>
+                          </summary>
+                          <div className="mt-3 rounded-[var(--radius-sm)] border border-line bg-canvas p-4">
+                            <FormularioTerapia
+                              accion={actualizarTerapia}
+                              beneficiarioId={beneficiario.id}
+                              terapiaId={terapia.id}
+                              valores={{
+                                nombre: terapia.nombre,
+                                detalle: terapia.detalle ?? "",
+                              }}
+                            />
+                          </div>
+                        </details>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {puedeTerapias ? (
+                <div className="border-t border-line p-5">
+                  <h3 className="mb-3 font-heading text-base font-semibold text-ink">
+                    Añadir una terapia
+                  </h3>
+                  <FormularioTerapia
+                    accion={agregarTerapia}
+                    beneficiarioId={beneficiario.id}
+                  />
+                </div>
+              ) : null}
             </Tarjeta>
           </section>
 
@@ -646,15 +747,6 @@ export default async function ExpedientePage({
                     <Campo etiqueta="Médico tratante">{clinico.medicoTratante}</Campo>
                     <Campo etiqueta="Alergias">{clinico.alergias}</Campo>
                     <Campo etiqueta="Medicamentos">{clinico.medicamentos}</Campo>
-                    <Campo etiqueta="Terapias">
-                      <ul className="flex flex-wrap gap-1.5">
-                        {clinico.terapias.map((terapia) => (
-                          <li key={terapia}>
-                            <Chip tono="info">{terapia}</Chip>
-                          </li>
-                        ))}
-                      </ul>
-                    </Campo>
                     <div className="sm:col-span-2 lg:col-span-3">
                       <Campo etiqueta="Antecedentes">{clinico.antecedentes}</Campo>
                     </div>
@@ -783,16 +875,14 @@ export default async function ExpedientePage({
               <TarjetaCabecera
                 id="documentos-titulo"
                 titulo="Documentos adjuntos"
-                descripcion="Los marcados como compartidos son los que el padrino puede abrir desde su portal."
+                descripcion="Los marcados como compartidos son los que el padrino y la familia pueden abrir desde su portal."
                 icono={<FileText className="size-5" />}
                 acciones={
-                  puedeSubirDocumentos ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/documento`}
-                      variante="contorno"
-                    >
-                      Adjuntar documento
-                    </EnlaceBoton>
+                  puedeDocumentos ? (
+                    <Chip tono="neutro">
+                      {documentos.length}{" "}
+                      {documentos.length === 1 ? "documento" : "documentos"}
+                    </Chip>
                   ) : undefined
                 }
               />
@@ -801,78 +891,63 @@ export default async function ExpedientePage({
                   <AccesoRestringido mensaje="Tu rol no incluye el permiso documentos.leer." />
                 </div>
               ) : (
-                <div className="p-5">
-                  <Tabla
-                    caption={`Documentos adjuntos al expediente de ${nombreCompleto}`}
-                    columnas={[
-                      "Documento",
-                      "Categoría",
-                      "Tamaño",
-                      "Vence",
-                      "Estado",
-                      "Compartido",
-                      "Subido por",
-                      "",
-                    ]}
-                  >
-                    {documentos.length === 0 ? (
-                      <FilaVacia columnas={8} mensaje="Sin documentos adjuntos." />
-                    ) : (
-                      documentos.map((documento) => (
-                        <Fila key={documento.id}>
-                          <Celda>
-                            {documento.archivo ? (
-                              <a
-                                href={`/api/documentos/${documento.id}`}
-                                target="_blank"
-                                rel="noopener"
-                                className="font-medium text-brand-dark hover:underline"
-                              >
-                                {documento.nombre}
-                                <span className="visually-hidden">
-                                  {" "}
-                                  (se abre en una pestaña nueva)
+                <>
+                  {documentos.length === 0 ? (
+                    <Vacio mensaje="Sin documentos adjuntos." />
+                  ) : (
+                    <ul className="divide-y divide-line">
+                      {documentos.map((documento) => (
+                        <li key={documento.id} className="px-5 py-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              {documento.archivo ? (
+                                <a
+                                  href={`/api/documentos/${documento.id}`}
+                                  target="_blank"
+                                  rel="noopener"
+                                  className="font-medium text-brand-dark hover:underline"
+                                >
+                                  {documento.nombre}
+                                  <span className="visually-hidden">
+                                    {" "}
+                                    (se abre en una pestaña nueva)
+                                  </span>
+                                </a>
+                              ) : (
+                                <span className="font-medium text-ink">
+                                  {documento.nombre}
                                 </span>
-                              </a>
-                            ) : (
-                              <span className="font-medium">{documento.nombre}</span>
-                            )}
-                            <span className="block font-mono text-xs text-ink-soft">
-                              {documento.archivo
-                                ? documento.tipoMime
-                                : "registrado sin archivo adjunto"}
-                            </span>
-                          </Celda>
-                          <Celda>{documento.categoria}</Celda>
-                          <Celda>{formatTamano(documento.tamanoBytes)}</Celda>
-                          <Celda>{formatFecha(documento.fechaVencimiento)}</Celda>
-                          <Celda>
-                            {documento.vigente ? (
-                              <Chip tono="ok">Vigente</Chip>
-                            ) : (
-                              <Chip tono="bad">Vencido</Chip>
-                            )}
-                          </Celda>
-                          <Celda>
-                            {documento.visibleParaPadrino ? (
-                              <Chip tono="ok">Compartido</Chip>
-                            ) : (
-                              <Chip tono="neutro">Interno</Chip>
-                            )}
-                          </Celda>
-                          <Celda>{documento.subidoPor}</Celda>
-                          <Celda className="whitespace-nowrap">
+                              )}
+                              <p className="mt-1 text-xs text-ink-soft">
+                                {documento.categoria} ·{" "}
+                                {documento.archivo
+                                  ? `${documento.tipoMime} · ${formatTamano(documento.tamanoBytes)}`
+                                  : "registrado sin archivo adjunto"}{" "}
+                                · subido por {documento.subidoPor} el{" "}
+                                {formatFecha(documento.createdAt)}
+                                {documento.fechaVencimiento
+                                  ? ` · vence el ${formatFecha(documento.fechaVencimiento)}`
+                                  : ""}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {documento.vigente ? (
+                                  <Chip tono="ok">Vigente</Chip>
+                                ) : (
+                                  <Chip tono="bad">Vencido</Chip>
+                                )}
+                                {documento.visibleParaPadrino ? (
+                                  <Chip tono="info">Compartido</Chip>
+                                ) : (
+                                  <Chip tono="neutro">Interno</Chip>
+                                )}
+                              </div>
+                            </div>
                             {puedeSubirDocumentos ? (
                               <MenuAcciones
                                 id={documento.id}
                                 etiqueta={`Acciones del documento ${documento.nombre}`}
                                 titulo={documento.nombre}
                               >
-                                <EnlaceMenu
-                                  href={`/admin/beneficiarios/${beneficiario.id}/documento/${documento.id}`}
-                                >
-                                  Corregir la ficha
-                                </EnlaceMenu>
                                 <OpcionConfirmada
                                   menu={documento.id}
                                   tono="peligro"
@@ -889,12 +964,53 @@ export default async function ExpedientePage({
                                 </OpcionConfirmada>
                               </MenuAcciones>
                             ) : null}
-                          </Celda>
-                        </Fila>
-                      ))
-                    )}
-                  </Tabla>
-                </div>
+                          </div>
+                          {puedeSubirDocumentos ? (
+                            <details className="mt-3">
+                              <summary className="cursor-pointer text-sm font-semibold text-brand-dark hover:underline">
+                                Corregir la ficha
+                                <span className="visually-hidden">
+                                  {" "}
+                                  de {documento.nombre}
+                                </span>
+                              </summary>
+                              <div className="mt-3 rounded-[var(--radius-sm)] border border-line bg-canvas p-4">
+                                <FormularioDocumento
+                                  accion={actualizarDocumento}
+                                  beneficiarioId={beneficiario.id}
+                                  documentoId={documento.id}
+                                  categorias={CATEGORIAS_DOCUMENTO}
+                                  tamanoMaximoMb={TAMANO_MAXIMO_DOCUMENTO / (1024 * 1024)}
+                                  valores={{
+                                    nombre: documento.nombre,
+                                    categoria: documento.categoria,
+                                    fechaVencimiento: documento.fechaVencimiento
+                                      ? fechaParaInput(documento.fechaVencimiento)
+                                      : "",
+                                    visibleParaPadrino: documento.visibleParaPadrino,
+                                  }}
+                                />
+                              </div>
+                            </details>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {puedeSubirDocumentos ? (
+                    <div className="border-t border-line p-5">
+                      <h3 className="mb-3 font-heading text-base font-semibold text-ink">
+                        Adjuntar un documento
+                      </h3>
+                      <FormularioDocumento
+                        accion={subirDocumento}
+                        beneficiarioId={beneficiario.id}
+                        categorias={CATEGORIAS_DOCUMENTO}
+                        tamanoMaximoMb={TAMANO_MAXIMO_DOCUMENTO / (1024 * 1024)}
+                      />
+                    </div>
+                  ) : null}
+                </>
               )}
             </Tarjeta>
           </section>

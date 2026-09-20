@@ -61,9 +61,17 @@ export function FormularioDocumento({
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
   const corrigiendo = Boolean(documentoId);
+  // Hay un formulario por documento en el expediente: los ids no se repiten.
+  const sufijo = documentoId ? `-${documentoId}` : "-nuevo";
 
   return (
-    <form action={enviar} className="flex flex-col gap-5" noValidate>
+    <form
+      action={enviar}
+      className="flex flex-col gap-5"
+      noValidate
+      // Al adjuntar, el formulario se vacía en cuanto la acción responde bien.
+      key={corrigiendo ? documentoId : estado.ok}
+    >
       {estado.ok ? (
         <MensajeFormulario tipo="ok">{estado.ok}</MensajeFormulario>
       ) : null}
@@ -77,35 +85,37 @@ export function FormularioDocumento({
       ) : null}
 
       <div className={corrigiendo ? "hidden" : "flex flex-col gap-1.5"}>
-        <label htmlFor="archivo" className="text-sm font-semibold text-ink">
+        <label htmlFor={`archivo${sufijo}`} className="text-sm font-semibold text-ink">
           Archivo
           <span className="ml-1 text-danger" aria-hidden="true">
             *
           </span>
           <span className="visually-hidden">(obligatorio)</span>
         </label>
-        <p id="archivo-ayuda" className="medida-lectura text-xs text-ink-soft">
+        <p id={`archivo${sufijo}-ayuda`} className="medida-lectura text-xs text-ink-soft">
           PDF o imagen JPG, PNG, WebP o HEIC (la foto del iPhone), de{" "}
           {tamanoMaximoMb} MB como máximo. Se guarda fuera de cualquier carpeta
           pública y se entrega por una ruta que comprueba el permiso en cada
           descarga.
         </p>
         <input
-          id="archivo"
+          id={`archivo${sufijo}`}
           name="archivo"
           type="file"
           required={!corrigiendo}
           disabled={corrigiendo}
           accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
           aria-describedby={
-            e.archivo ? "archivo-ayuda archivo-error" : "archivo-ayuda"
+            e.archivo
+              ? `archivo${sufijo}-ayuda archivo${sufijo}-error`
+              : `archivo${sufijo}-ayuda`
           }
           aria-invalid={e.archivo ? true : undefined}
           className="w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-[var(--radius-sm)] file:border-0 file:bg-brand-sky file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-dark"
         />
         {e.archivo ? (
           <p
-            id="archivo-error"
+            id={`archivo${sufijo}-error`}
             role="alert"
             className="text-xs font-medium text-danger"
           >
@@ -116,7 +126,7 @@ export function FormularioDocumento({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <CampoTexto
-          id="nombre"
+          id={`nombre${sufijo}`}
           name="nombre"
           etiqueta="Nombre del documento"
           ayuda="Como debe aparecer en el expediente."
@@ -125,7 +135,7 @@ export function FormularioDocumento({
           error={e.nombre}
         />
         <CampoSelect
-          id="categoria"
+          id={`categoria${sufijo}`}
           name="categoria"
           etiqueta="Categoría"
           requerido
@@ -156,14 +166,14 @@ export function FormularioDocumento({
 
       <div className="flex items-start gap-3 rounded-[var(--radius-sm)] border border-line bg-canvas p-4">
         <input
-          id="visibleParaPadrino"
+          id={`visibleParaPadrino${sufijo}`}
           name="visibleParaPadrino"
           type="checkbox"
           defaultChecked={valores.visibleParaPadrino}
           className="mt-1 size-4 rounded border-line"
         />
         <label
-          htmlFor="visibleParaPadrino"
+          htmlFor={`visibleParaPadrino${sufijo}`}
           className="medida-lectura text-sm text-ink"
         >
           <span className="font-semibold">Compartir con el padrino.</span> Si lo

@@ -23,19 +23,14 @@ export default async function InscripcionPage({
   const { id } = await params;
   const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
 
-  const [beneficiario, programas, ajustes] = await Promise.all([
+  const [beneficiario, ajustes] = await Promise.all([
     prisma.beneficiario.findUnique({
       where: { id },
       include: {
         encargado: true,
-        programa: { select: { nombre: true } },
+        terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
         inscripciones: { orderBy: { ciclo: "desc" }, take: 1 },
       },
-    }),
-    prisma.programa.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-      select: { nombre: true },
     }),
     prisma.setting.findMany({
       where: { clave: { in: ["inscripciones.cicloVigente", "inscripciones.voBo"] } },
@@ -87,7 +82,7 @@ export default async function InscripcionPage({
         <FormularioInscripcion
           accion={registrarInscripcion}
           beneficiarioId={beneficiario.id}
-          areas={programas.map((p) => p.nombre)}
+          areas={beneficiario.terapias.map((t) => t.nombre)}
           puedeClinico={tienePermiso(usuario, PERMISOS.EXPEDIENTE_CLINICO_LEER)}
           valores={{
             escolaridad: beneficiario.escolaridad ?? "",

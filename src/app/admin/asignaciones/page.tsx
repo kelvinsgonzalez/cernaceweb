@@ -12,7 +12,7 @@ import {
   Tabla,
 } from "@/components/admin/estructura";
 import { calcularEdad, fechaParaInput, formatFecha, formatQuetzales } from "@/lib/fechas";
-import { aNumero, primerNombre } from "@/lib/utils";
+import { aNumero, listarTerapias, primerNombre } from "@/lib/utils";
 import { FormularioAsignacion } from "./formulario";
 import { asignarPadrinazgo, finalizarPadrinazgo } from "./acciones";
 
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 const COLUMNAS = [
   "Beneficiario",
-  "Programa",
+  "Terapias",
   "Padrino",
   "Aporte",
   "Modalidad",
@@ -44,7 +44,7 @@ export default async function AsignacionesPage() {
             nombres: true,
             apellidos: true,
             codigoExpediente: true,
-            programa: { select: { nombre: true } },
+            terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
           },
         },
       },
@@ -60,7 +60,7 @@ export default async function AsignacionesPage() {
         fechaNacimiento: true,
         solicitaPatrocinio: true,
         publicadoEnGaleria: true,
-        programa: { select: { nombre: true } },
+        terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
       },
       orderBy: { fechaIngreso: "asc" },
     }),
@@ -120,7 +120,7 @@ export default async function AsignacionesPage() {
                   </Link>
                   <span className="block text-xs text-ink-soft">
                     {b.codigoExpediente} · {calcularEdad(b.fechaNacimiento)} años ·{" "}
-                    {b.programa.nombre}
+                    {listarTerapias(b.terapias)}
                   </span>
                 </div>
                 <Chip tono="warn">Falta autorizar</Chip>
@@ -142,7 +142,7 @@ export default async function AsignacionesPage() {
             hoy={fechaParaInput(new Date())}
             beneficiarios={sinPadrino.map((b) => ({
               id: b.id,
-              etiqueta: `${b.nombres} ${b.apellidos} · ${calcularEdad(b.fechaNacimiento)} años · ${b.programa.nombre}`,
+              etiqueta: `${b.nombres} ${b.apellidos} · ${calcularEdad(b.fechaNacimiento)} años · ${listarTerapias(b.terapias)}`,
             }))}
             padrinos={padrinos.map((p) => ({
               id: p.id,
@@ -180,7 +180,7 @@ export default async function AsignacionesPage() {
                     {padrinazgo.beneficiario.codigoExpediente}
                   </span>
                 </Celda>
-                <Celda>{padrinazgo.beneficiario.programa.nombre}</Celda>
+                <Celda>{listarTerapias(padrinazgo.beneficiario.terapias)}</Celda>
                 <Celda>
                   <span className="block">{padrinazgo.padrino.nombre}</span>
                   <span className="block text-xs text-ink-soft">

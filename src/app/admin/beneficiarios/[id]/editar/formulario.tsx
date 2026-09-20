@@ -43,7 +43,6 @@ export type ValoresBeneficiario = {
   encargadoOficio: string;
   encargadoIntegrantes: string;
   encargadoDireccion: string;
-  programaId: string;
   centroAtencion: string;
   solicitaPatrocinio: boolean;
   estado: string;
@@ -53,7 +52,6 @@ export type ValoresBeneficiario = {
 export function FormularioEditar({
   accion,
   valores,
-  programas,
   modo = "editar",
 }: {
   accion: (
@@ -61,7 +59,6 @@ export function FormularioEditar({
     datos: FormData,
   ) => Promise<EstadoFormulario>;
   valores: ValoresBeneficiario;
-  programas: { id: string; nombre: string }[];
   /** El mismo formulario abre expedientes y los corrige: los campos son los
    *  mismos y así no se separan con el tiempo. Lo único que cambia es el `id`
    *  oculto, los textos de ayuda y el botón. */
@@ -355,22 +352,8 @@ export function FormularioEditar({
 
       <fieldset className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <legend className="mb-3 font-heading text-lg font-semibold text-ink">
-          Programa y estado
+          Centro y estado
         </legend>
-        <CampoSelect
-          id="programaId"
-          name="programaId"
-          etiqueta="Programa"
-          requerido
-          defaultValue={valores.programaId}
-          error={e.programaId}
-        >
-          {programas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </CampoSelect>
         <CampoCentro
           defaultValue={valores.centroAtencion}
           error={e.centroAtencion}

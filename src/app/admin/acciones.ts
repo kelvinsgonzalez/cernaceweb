@@ -12,7 +12,7 @@ const esquemaEstado = z.object({
 });
 
 export async function cambiarEstadoPostulacion(datos: FormData) {
-  const usuario = await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
+  const usuario = await requirePermiso(PERMISOS.CONTACTO_ATENDER);
   const parseo = esquemaEstado.safeParse(Object.fromEntries(datos));
   if (!parseo.success) return;
 
@@ -33,7 +33,7 @@ export async function cambiarEstadoPostulacion(datos: FormData) {
 }
 
 export async function cambiarEstadoMensaje(datos: FormData) {
-  const usuario = await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
+  const usuario = await requirePermiso(PERMISOS.CONTACTO_ATENDER);
   const parseo = esquemaEstado.safeParse(Object.fromEntries(datos));
   if (!parseo.success) return;
 

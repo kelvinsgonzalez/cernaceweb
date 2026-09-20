@@ -103,7 +103,7 @@ export function FormularioPublicacion({
             Autorizo que sus datos generales y su foto salgan en la página
             pública.
           </span>{" "}
-          Se muestran el primer nombre, la edad, el programa y este resumen.
+          Se muestran el primer nombre, la edad, las terapias y este resumen.
           Nunca apellidos, diagnóstico ni datos de la familia. Deja de aparecer
           en cuanto se le asigne un padrino.
           {puedePublicar ? null : (

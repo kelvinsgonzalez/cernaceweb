@@ -19,14 +19,9 @@ export const dynamic = "force-dynamic";
 export default async function NuevoBeneficiarioPage() {
   await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
 
-  const [programas, codigos] = await Promise.all([
-    prisma.programa.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-      select: { id: true, nombre: true },
-    }),
-    prisma.beneficiario.findMany({ select: { codigoExpediente: true } }),
-  ]);
+  const codigos = await prisma.beneficiario.findMany({
+    select: { codigoExpediente: true },
+  });
 
   return (
     <>
@@ -47,7 +42,6 @@ export default async function NuevoBeneficiarioPage() {
         <FormularioEditar
           modo="crear"
           accion={crearBeneficiario}
-          programas={programas}
           valores={{
             id: "",
             codigoExpediente: siguienteCodigo(
@@ -82,7 +76,6 @@ export default async function NuevoBeneficiarioPage() {
             encargadoOficio: "",
             encargadoIntegrantes: "",
             encargadoDireccion: "",
-            programaId: programas[0]?.id ?? "",
             centroAtencion: CENTRO_PREDETERMINADO,
             solicitaPatrocinio: false,
             estado: "ACTIVO",

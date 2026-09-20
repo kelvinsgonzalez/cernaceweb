@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Mensajes de contacto" };
 export const dynamic = "force-dynamic";
 
 export default async function MensajesPage() {
-  await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
+  await requirePermiso(PERMISOS.CONTACTO_ATENDER);
 
   const mensajes = await prisma.contactMessage.findMany({
     orderBy: { createdAt: "desc" },

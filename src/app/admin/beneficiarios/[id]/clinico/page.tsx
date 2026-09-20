@@ -99,7 +99,6 @@ export default async function ClinicoPage({
                 alergias: clinico?.alergias ?? "",
                 medicamentos: clinico?.medicamentos ?? "",
                 antecedentes: clinico?.antecedentes ?? "",
-                terapias: (clinico?.terapias ?? []).join(", "),
               }}
             />
           </div>

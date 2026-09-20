@@ -24,17 +24,15 @@ export default async function EditarInscripcionPage({
   const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
   const puedeClinico = tienePermiso(usuario, PERMISOS.EXPEDIENTE_CLINICO_LEER);
 
-  const [beneficiario, ficha, programas] = await Promise.all([
+  const [beneficiario, ficha] = await Promise.all([
     prisma.beneficiario.findUnique({
       where: { id },
-      include: { encargado: true },
+      include: {
+        encargado: true,
+        terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
+      },
     }),
     prisma.inscripcion.findUnique({ where: { id: inscripcionId } }),
-    prisma.programa.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-      select: { nombre: true },
-    }),
   ]);
 
   // Una ficha de otro expediente no se corrige desde aquí, aunque el id exista.
@@ -69,7 +67,7 @@ export default async function EditarInscripcionPage({
           accion={actualizarInscripcion}
           beneficiarioId={beneficiario.id}
           inscripcionId={ficha.id}
-          areas={programas.map((p) => p.nombre)}
+          areas={beneficiario.terapias.map((t) => t.nombre)}
           puedeClinico={puedeClinico}
           valores={{
             escolaridad: beneficiario.escolaridad ?? "",

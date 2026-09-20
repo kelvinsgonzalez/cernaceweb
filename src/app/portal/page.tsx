@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, HeartHandshake } from "lucide-react";
+import { ArrowRight, HeartHandshake, HeartPulse } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Chip, Tarjeta, Vacio } from "@/components/ui";
-import { IconoPrograma } from "@/components/icono-programa";
 import { calcularEdad, formatFecha, formatQuetzales } from "@/lib/fechas";
-import { aNumero, primerNombre } from "@/lib/utils";
+import { aNumero, listarTerapias, primerNombre } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Mis apadrinados",
@@ -28,7 +27,7 @@ export default async function PortalPage() {
               id: true,
               nombres: true,
               fechaNacimiento: true,
-              programa: { select: { nombre: true, icono: true } },
+              terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
               _count: {
                 select: { seguimientos: { where: { visibleParaPadrino: true } } },
               },
@@ -94,11 +93,8 @@ export default async function PortalPage() {
                         {nombre}, {calcularEdad(nino.fechaNacimiento)} años
                       </h2>
                       <p className="mt-0.5 inline-flex items-center gap-2 text-sm text-brand-primary">
-                        <IconoPrograma
-                          nombre={nino.programa.icono}
-                          className="size-4"
-                        />
-                        {nino.programa.nombre}
+                        <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
+                        {listarTerapias(nino.terapias)}
                       </p>
                     </div>
                   </div>

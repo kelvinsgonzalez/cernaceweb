@@ -62,3 +62,12 @@ export function slugify(texto: string): string {
 export function rutaActiva(ruta: string, href: string): boolean {
   return ruta === href || ruta.startsWith(`${href}/`);
 }
+
+/**
+ * Las terapias de un niño en una sola línea, para las tarjetas y cabeceras.
+ * Sin terapias anotadas se dice claramente, en vez de dejar el hueco.
+ */
+export function listarTerapias(terapias: { nombre: string }[]): string {
+  if (terapias.length === 0) return "Sin terapias anotadas";
+  return terapias.map((t) => t.nombre).join(" · ");
+}

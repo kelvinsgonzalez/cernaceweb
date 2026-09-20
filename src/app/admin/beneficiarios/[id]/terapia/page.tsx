@@ -9,8 +9,9 @@ import { Chip, Tarjeta, TarjetaCabecera } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { calcularEdad, fechaParaInput, formatFecha } from "@/lib/fechas";
 import { nombreDeRol } from "@/lib/rbac";
-import { FormularioPlan, FormularioResponsables } from "@/app/admin/terapia/formulario";
-import { asignarResponsables, guardarPlan } from "@/app/admin/terapia/acciones";
+import { listarTerapias } from "@/lib/utils";
+import { FormularioPlan, FormularioResponsables } from "./formulario";
+import { asignarResponsables, guardarPlan } from "./acciones";
 
 export const metadata: Metadata = { title: "Plan de terapia" };
 
@@ -28,7 +29,7 @@ export default async function TerapiaPage({
     prisma.beneficiario.findUnique({
       where: { id },
       include: {
-        programa: { select: { nombre: true } },
+        terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
         plan: true,
         responsables: {
           where: { activo: true },
@@ -55,6 +56,7 @@ export default async function TerapiaPage({
         id: true,
         nombre: true,
         cargo: true,
+        curriculum: true,
         roles: { select: { role: { select: { clave: true } } } },
         _count: { select: { asignaciones: { where: { activo: true } } } },
       },
@@ -79,7 +81,7 @@ export default async function TerapiaPage({
 
       <EncabezadoPagina
         titulo="Plan de terapia y equipo"
-        descripcion={`${beneficiario.nombres} ${beneficiario.apellidos} · ${calcularEdad(beneficiario.fechaNacimiento)} años · ${beneficiario.programa.nombre}`}
+        descripcion={`${beneficiario.nombres} ${beneficiario.apellidos} · ${calcularEdad(beneficiario.fechaNacimiento)} años · ${listarTerapias(beneficiario.terapias)}`}
         acciones={
           plan?.activo ? (
             <Chip tono="ok">Aprobado el {formatFecha(plan.fechaAprobacion)}</Chip>
@@ -134,6 +136,7 @@ export default async function TerapiaPage({
                 id: c.id,
                 nombre: c.nombre,
                 cargo: c.cargo,
+                curriculum: c.curriculum,
                 roles: c.roles.map((r) => nombreDeRol(r.role.clave)).join(", "),
                 casos: c._count.asignaciones,
               }))}

@@ -9,7 +9,7 @@ import { Chip, Tarjeta, TarjetaCabecera } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { FotoBeneficiario } from "@/components/foto-beneficiario";
 import { calcularEdad } from "@/lib/fechas";
-import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
+import { primerNombre, urlFotoBeneficiario, listarTerapias } from "@/lib/utils";
 import { FormularioPublicacion } from "./formulario";
 import { guardarPublicacion } from "../../acciones";
 
@@ -38,7 +38,7 @@ export default async function PublicacionPage({
       publicadoEnGaleria: true,
       resumenPublico: true,
       fotoArchivo: true,
-      programa: { select: { nombre: true } },
+      terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
       plan: { select: { activo: true } },
       padrinazgos: {
         where: { activo: true },
@@ -115,7 +115,7 @@ export default async function PublicacionPage({
                 {nombre}, {calcularEdad(beneficiario.fechaNacimiento)} años
               </p>
               <p className="text-sm text-brand-primary">
-                {beneficiario.programa.nombre}
+                {listarTerapias(beneficiario.terapias)}
               </p>
               {beneficiario.resumenPublico ? (
                 <p className="medida-lectura text-center text-sm text-ink-soft">

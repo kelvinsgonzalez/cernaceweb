@@ -19,6 +19,7 @@ export type OpcionResponsable = {
   id: string;
   nombre: string;
   cargo: string | null;
+  curriculum: string | null;
   roles: string;
   casos: number;
 };
@@ -186,6 +187,11 @@ export function FormularioResponsables({
                     <span className="mt-1 block text-xs text-ink-soft">
                       {c.cargo ?? c.roles}
                     </span>
+                    {c.curriculum ? (
+                      <span className="medida-lectura mt-2 block text-xs text-ink-soft">
+                        {c.curriculum}
+                      </span>
+                    ) : null}
                   </span>
                 </label>
               </li>

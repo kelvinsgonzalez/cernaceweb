@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   Activity,
   FolderOpen,
@@ -12,6 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { requireSesion, tienePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
+import { modulosVisibles } from "@/lib/navegacion";
 import { Chip, Kpi, Tarjeta, TarjetaCabecera, Vacio } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { formatFecha, formatFechaHora, formatQuetzales } from "@/lib/fechas";
@@ -23,6 +25,14 @@ export const dynamic = "force-dynamic";
 
 export default async function PanelPage() {
   const usuario = await requireSesion();
+
+  // Quien no tiene panel general aterriza en su primer módulo: el enlace de
+  // inicio del menú y /inicio siguen apuntando aquí, así que no hay callejón.
+  if (!tienePermiso(usuario, PERMISOS.PANEL_VER)) {
+    const primero = modulosVisibles(usuario.permisos).find((m) => m.href !== "/admin");
+    redirect(primero?.href ?? "/sin-acceso");
+  }
+
   const puedeVerDonaciones = tienePermiso(usuario, PERMISOS.DONACIONES_LEER);
   const puedeVerAuditoria = tienePermiso(usuario, PERMISOS.AUDITORIA_LEER);
   const puedeVerSolicitudes = tienePermiso(usuario, PERMISOS.SOLICITUDES_ATENDER);
@@ -218,10 +228,10 @@ export default async function PanelPage() {
                   : "casos asignados a tu nombre"}
               </p>
               <Link
-                href="/admin/terapia"
+                href="/admin/beneficiarios?alerta=mis-casos"
                 className="mt-2 inline-block text-sm font-semibold text-brand-primary hover:underline"
               >
-                Ir a terapia
+                Ver mis casos
               </Link>
             </div>
           </Tarjeta>

@@ -23,16 +23,10 @@ export default async function EditarPage({
   const { id } = await params;
   await requirePermiso(PERMISOS.EXPEDIENTE_ESCRIBIR);
 
-  const [beneficiario, programas] = await Promise.all([
-    prisma.beneficiario.findUnique({
-      where: { id },
-      include: { encargado: true },
-    }),
-    prisma.programa.findMany({
-      orderBy: { nombre: "asc" },
-      select: { id: true, nombre: true },
-    }),
-  ]);
+  const beneficiario = await prisma.beneficiario.findUnique({
+    where: { id },
+    include: { encargado: true },
+  });
 
   if (!beneficiario) notFound();
 
@@ -54,7 +48,6 @@ export default async function EditarPage({
       <Tarjeta className="p-6 sm:p-8">
         <FormularioEditar
           accion={guardarDatosGenerales}
-          programas={programas}
           valores={{
             id: beneficiario.id,
             codigoExpediente: beneficiario.codigoExpediente,
@@ -90,7 +83,6 @@ export default async function EditarPage({
             encargadoIntegrantes:
               beneficiario.encargado?.integrantesFamilia?.toString() ?? "",
             encargadoDireccion: beneficiario.encargado?.direccion ?? "",
-            programaId: beneficiario.programaId,
             centroAtencion: beneficiario.centroAtencion,
             solicitaPatrocinio: beneficiario.solicitaPatrocinio,
             estado: beneficiario.estado,

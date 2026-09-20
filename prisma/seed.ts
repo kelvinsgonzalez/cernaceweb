@@ -48,6 +48,7 @@ async function limpiar() {
   await prisma.planTerapeutico.deleteMany();
   await prisma.comentarioAvance.deleteMany();
   await prisma.inscripcion.deleteMany();
+  await prisma.terapiaBeneficiario.deleteMany();
   await prisma.cita.deleteMany();
   await prisma.seguimiento.deleteMany();
   await prisma.documento.deleteMany();
@@ -120,6 +121,8 @@ async function sembrarAcceso() {
       nombre: "Julio Mux",
       email: "terapeuta@cernace.org",
       cargo: "Terapeuta físico",
+      curriculum:
+        "Licenciado en fisioterapia por la Universidad de San Carlos. Ocho años en rehabilitación pediátrica, con formación en Bobath e hidroterapia. En CERNACE desde 2018.",
       rol: "TERAPEUTA",
       ultimoAcceso: t("2026-08-07T16:05:00-06:00"),
     },
@@ -147,6 +150,7 @@ async function sembrarAcceso() {
         email: cuenta.email,
         passwordHash,
         cargo: cuenta.cargo,
+        curriculum: "curriculum" in cuenta ? cuenta.curriculum : null,
         ultimoAcceso: cuenta.ultimoAcceso,
         roles: { create: [{ role: { connect: { clave: cuenta.rol } } }] },
       },
@@ -196,12 +200,9 @@ async function sembrarProgramas() {
     },
   ];
 
-  const ids: Record<string, string> = {};
   for (const programa of programas) {
-    const creado = await prisma.programa.create({ data: programa });
-    ids[programa.nombre] = creado.id;
+    await prisma.programa.create({ data: programa });
   }
-  return ids;
 }
 
 type DatosBeneficiario = {
@@ -222,7 +223,8 @@ type DatosBeneficiario = {
   telefono: string | null;
   encargado: string;
   fechaIngreso: string;
-  programa: string;
+  /// Terapias del expediente: nombre y, si hace falta, explicación.
+  terapias: { nombre: string; detalle?: string }[];
   estadoExpediente: "COMPLETO" | "EN_REVISION" | "INCOMPLETO";
   publicadoEnGaleria: boolean;
   resumenPublico: string | null;
@@ -288,10 +290,7 @@ async function escribirPdfDeDemostracion(destino: string, titulo: string) {
   await writeFile(destino, pdf, "latin1");
 }
 
-async function sembrarBeneficiarios(
-  programas: Record<string, string>,
-  encargados: Record<string, string>,
-) {
+async function sembrarBeneficiarios(encargados: Record<string, string>) {
   const datos: DatosBeneficiario[] = [
     {
       codigoExpediente: "EXP-2024-0087",
@@ -311,7 +310,16 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Rosa Coy Tzaj",
       fechaIngreso: "2024-02-05",
-      programa: "Terapia física",
+      terapias: [
+        {
+          nombre: "Terapia física",
+          detalle:
+            "Tres sesiones por semana. Control de tronco, bipedestación asistida y marcha con andador posterior.",
+        },
+        { nombre: "Terapia ocupacional" },
+        { nombre: "Hidroterapia", detalle: "Una sesión semanal en la piscina del centro." },
+        { nombre: "Terapia del lenguaje" },
+      ],
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
@@ -336,7 +344,12 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Manuela Yax Sic",
       fechaIngreso: "2024-03-18",
-      programa: "Terapia del lenguaje",
+      terapias: [
+        {
+          nombre: "Terapia del lenguaje",
+          detalle: "Dos sesiones semanales de articulación y lenguaje expresivo.",
+        },
+      ],
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: true,
       resumenPublico:
@@ -362,7 +375,10 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Otilia Pérez Simón",
       fechaIngreso: "2024-05-06",
-      programa: "Educación especial",
+      terapias: [
+        { nombre: "Educación especial" },
+        { nombre: "Terapia ocupacional" },
+      ],
       estadoExpediente: "EN_REVISION",
       publicadoEnGaleria: true,
       resumenPublico:
@@ -388,7 +404,7 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Julián Tuy Sotz",
       fechaIngreso: "2025-01-20",
-      programa: "Estimulación temprana",
+      terapias: [{ nombre: "Estimulación temprana" }],
       estadoExpediente: "INCOMPLETO",
       publicadoEnGaleria: true,
       resumenPublico:
@@ -414,7 +430,10 @@ async function sembrarBeneficiarios(
       telefono: "4102 6653",
       encargado: "Silvia Roquel Ajú",
       fechaIngreso: "2025-02-11",
-      programa: "Terapia ocupacional",
+      terapias: [
+        { nombre: "Terapia ocupacional" },
+        { nombre: "Integración sensorial" },
+      ],
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
@@ -439,7 +458,7 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Delia Bal Morales",
       fechaIngreso: "2025-03-03",
-      programa: "Apoyo psicológico familiar",
+      terapias: [{ nombre: "Apoyo psicológico familiar" }],
       estadoExpediente: "COMPLETO",
       publicadoEnGaleria: false,
       resumenPublico: null,
@@ -464,7 +483,7 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Hugo Simón Cutzal",
       fechaIngreso: "2025-04-22",
-      programa: "Terapia física",
+      terapias: [{ nombre: "Terapia física" }],
       estadoExpediente: "INCOMPLETO",
       // Pide patrocinador pero la administración aún no lo ha autorizado: así
       // el panel tiene el caso «lo pidió y falta publicarlo».
@@ -492,7 +511,7 @@ async function sembrarBeneficiarios(
       telefono: null,
       encargado: "Irma Set Quiñónez",
       fechaIngreso: "2025-06-09",
-      programa: "Estimulación temprana",
+      terapias: [{ nombre: "Estimulación temprana" }],
       estadoExpediente: "EN_REVISION",
       publicadoEnGaleria: false,
       resumenPublico: null,
@@ -527,7 +546,13 @@ async function sembrarBeneficiarios(
         telefono: b.telefono,
         encargadoId: encargados[b.encargado],
         fechaIngreso: f(b.fechaIngreso),
-        programaId: programas[b.programa],
+        terapias: {
+          create: b.terapias.map((t, orden) => ({
+            nombre: t.nombre,
+            detalle: t.detalle ?? null,
+            orden,
+          })),
+        },
         estado: "ACTIVO",
         estadoExpediente: b.estadoExpediente,
         publicadoEnGaleria: b.publicadoEnGaleria,
@@ -917,12 +942,6 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
       medicamentos: "Baclofeno 5 mg, dos veces al día",
       antecedentes:
         "Nacimiento prematuro a las 32 semanas, dos semanas en incubadora. Sin antecedentes familiares relevantes.",
-      terapias: [
-        "Terapia física",
-        "Terapia ocupacional",
-        "Hidroterapia",
-        "Terapia del lenguaje",
-      ],
     },
   });
 
@@ -1192,7 +1211,6 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         alergias: null,
         medicamentos: null,
         antecedentes: "Otitis recurrentes en los dos primeros años.",
-        terapias: ["Terapia del lenguaje"],
       },
       {
         beneficiarioId: ids["EXP-2024-0104"],
@@ -1205,7 +1223,6 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         alergias: null,
         medicamentos: null,
         antecedentes: null,
-        terapias: ["Educación especial", "Terapia ocupacional"],
       },
       {
         beneficiarioId: ids["EXP-2025-0118"],
@@ -1218,7 +1235,6 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         alergias: "Lactosa",
         medicamentos: null,
         antecedentes: "Hiperreactividad sensorial a los ruidos fuertes.",
-        terapias: ["Terapia ocupacional", "Integración sensorial"],
       },
       {
         beneficiarioId: ids["EXP-2025-0123"],
@@ -1231,7 +1247,6 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         alergias: null,
         medicamentos: null,
         antecedentes: null,
-        terapias: ["Apoyo psicológico"],
       },
     ],
   });
@@ -1989,13 +2004,13 @@ async function main() {
   const usuarios = await sembrarAcceso();
   console.log("· Roles, permisos y 6 cuentas de demostración");
 
-  const programas = await sembrarProgramas();
-  console.log("· 6 programas");
+  await sembrarProgramas();
+  console.log("· 6 programas (referencia de la landing)");
 
   const encargados = await sembrarEncargados();
   console.log("· 8 encargados");
 
-  const beneficiarios = await sembrarBeneficiarios(programas, encargados);
+  const beneficiarios = await sembrarBeneficiarios(encargados);
   console.log("· 8 beneficiarios");
 
   // La cuenta de la familia se ata al expediente aquí, ya creados los dos.

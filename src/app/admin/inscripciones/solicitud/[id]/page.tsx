@@ -45,13 +45,8 @@ export default async function PapeletaPage({
   if (!tienePermiso(usuario, PERMISOS.SOLICITUDES_ATENDER))
     redirect("/sin-acceso");
 
-  const [solicitud, programas, codigos, ajustes] = await Promise.all([
+  const [solicitud, codigos, ajustes] = await Promise.all([
     prisma.supportRequest.findUnique({ where: { id } }),
-    prisma.programa.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-      select: { id: true, nombre: true },
-    }),
     prisma.beneficiario.findMany({ select: { codigoExpediente: true } }),
     prisma.setting.findMany({
       where: {
@@ -75,9 +70,6 @@ export default async function PapeletaPage({
     ajustes.find((a) => a.clave === clave)?.valor ?? "";
 
   const { nombres, apellidos } = partirNombre(solicitud.nombreNino);
-  const pedido = programas.find(
-    (p) => p.nombre === solicitud.programaSolicitado,
-  );
   const hoy = fechaParaInput(new Date());
 
   return (
@@ -99,8 +91,6 @@ export default async function PapeletaPage({
         <Tarjeta className="p-6 sm:p-8">
           <FormularioPapeleta
             accion={aceptarSolicitud}
-            programas={programas}
-            areas={programas.map((p) => p.nombre)}
             puedeClinico={tienePermiso(
               usuario,
               PERMISOS.EXPEDIENTE_CLINICO_LEER,
@@ -119,7 +109,6 @@ export default async function PapeletaPage({
               escolaridad: "",
               sector: "",
               telefono: solicitud.encargadoTelefono,
-              programaId: pedido?.id ?? "",
               centroAtencion: CENTRO_PREDETERMINADO,
               fechaIngreso: hoy,
               encargadoNombre: solicitud.encargadoNombre,

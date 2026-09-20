@@ -19,7 +19,6 @@ export type ValoresClinico = {
   alergias: string;
   medicamentos: string;
   antecedentes: string;
-  terapias: string;
 };
 
 const claseGrupo = "grid gap-5 sm:grid-cols-2 lg:grid-cols-3";
@@ -120,15 +119,6 @@ export function FormularioClinico({
           etiqueta="Medicamentos"
           defaultValue={valores.medicamentos}
           error={e.medicamentos}
-        />
-        <CampoTexto
-          id="terapias"
-          name="terapias"
-          etiqueta="Terapias"
-          ayuda="Sepáralas con comas. Por ejemplo: Terapia física, Lenguaje."
-          defaultValue={valores.terapias}
-          error={e.terapias}
-          className="sm:col-span-2 lg:col-span-3"
         />
         <div className="sm:col-span-2 lg:col-span-3">
           <CampoArea

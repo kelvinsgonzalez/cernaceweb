@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Boton, CampoTexto, MensajeFormulario } from "@/components/ui";
+import { Boton, CampoArea, CampoTexto, MensajeFormulario } from "@/components/ui";
 import { ESTADO_INICIAL, type EstadoFormulario } from "@/lib/formularios";
 
 type Accion = (
@@ -52,6 +52,16 @@ export function FormularioNuevoTerapeuta({ accion }: { accion: Accion }) {
         autoComplete="off"
       />
 
+      <CampoArea
+        id="curriculum"
+        name="curriculum"
+        etiqueta="Currículum breve"
+        ayuda="Formación, experiencia y con qué trabaja. Lo lee quien arma el equipo de cada niño."
+        rows={4}
+        maxLength={1500}
+        error={e.curriculum}
+      />
+
       <fieldset className="flex flex-col gap-5 border-t border-line pt-5">
         <legend className="text-sm font-semibold text-ink">
           Contraseña inicial
@@ -99,11 +109,13 @@ export function FormularioEditarTerapeuta({
   id,
   nombre,
   cargo,
+  curriculum,
 }: {
   accion: Accion;
   id: string;
   nombre: string;
   cargo: string | null;
+  curriculum: string | null;
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
@@ -136,6 +148,17 @@ export function FormularioEditarTerapeuta({
           error={e.cargo}
         />
       </div>
+
+      <CampoArea
+        id="curriculum"
+        name="curriculum"
+        etiqueta="Currículum breve"
+        ayuda="Formación, experiencia y con qué trabaja. Lo lee quien arma el equipo de cada niño."
+        rows={4}
+        maxLength={1500}
+        defaultValue={curriculum ?? ""}
+        error={e.curriculum}
+      />
 
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">

@@ -30,7 +30,7 @@ export const MODULOS: Modulo[] = [
     href: "/admin",
     etiqueta: "Panel",
     icono: "LayoutDashboard",
-    permiso: PERMISOS.EXPEDIENTE_LEER,
+    permiso: PERMISOS.PANEL_VER,
     grupo: "General",
   },
   {
@@ -48,31 +48,10 @@ export const MODULOS: Modulo[] = [
     grupo: "Expedientes",
   },
   {
-    href: "/admin/terapia",
-    etiqueta: "Terapia",
-    icono: "Activity",
-    permiso: PERMISOS.SEGUIMIENTO_LEER,
-    grupo: "Expedientes",
-  },
-  {
     href: "/admin/terapeutas",
     etiqueta: "Terapeutas",
     icono: "Stethoscope",
-    permiso: PERMISOS.TERAPEUTAS_GESTIONAR,
-    grupo: "Expedientes",
-  },
-  {
-    href: "/admin/programas",
-    etiqueta: "Programas",
-    icono: "Puzzle",
-    permiso: PERMISOS.PROGRAMAS_LEER,
-    grupo: "Expedientes",
-  },
-  {
-    href: "/admin/documentos",
-    etiqueta: "Documentos",
-    icono: "FileText",
-    permiso: PERMISOS.DOCUMENTOS_LEER,
+    permiso: PERMISOS.TERAPEUTAS_LEER,
     grupo: "Expedientes",
   },
   {
@@ -93,7 +72,7 @@ export const MODULOS: Modulo[] = [
     href: "/admin/donantes",
     etiqueta: "Donantes y padrinos",
     icono: "HeartHandshake",
-    permiso: PERMISOS.DONACIONES_LEER,
+    permiso: PERMISOS.PADRINOS_GESTIONAR,
     grupo: "Recaudación",
   },
   {
@@ -107,7 +86,7 @@ export const MODULOS: Modulo[] = [
     href: "/admin/voluntarios",
     etiqueta: "Voluntarios",
     icono: "UserPlus",
-    permiso: PERMISOS.SOLICITUDES_ATENDER,
+    permiso: PERMISOS.CONTACTO_ATENDER,
     grupo: "Recaudación",
   },
   {
@@ -122,7 +101,7 @@ export const MODULOS: Modulo[] = [
     href: "/admin/mensajes",
     etiqueta: "Mensajes",
     icono: "Mail",
-    permiso: PERMISOS.SOLICITUDES_ATENDER,
+    permiso: PERMISOS.CONTACTO_ATENDER,
     grupo: "Entrantes",
   },
   {

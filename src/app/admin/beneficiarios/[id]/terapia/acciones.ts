@@ -78,7 +78,7 @@ export async function guardarPlan(
     detalle: `${activo ? "Aprobado" : "Suspendido"} el plan de terapia de ${primerNombre(beneficiario.nombres)} (${beneficiario.codigoExpediente})`,
   });
 
-  revalidatePath("/admin/terapia");
+  revalidatePath("/admin/beneficiarios");
   revalidatePath(`/admin/beneficiarios/${beneficiario.id}`);
 
   return {
@@ -193,7 +193,7 @@ export async function asignarResponsables(
         : `Responsables de ${primerNombre(beneficiario.nombres)}: ${elegibles.map((u) => u.nombre).join(", ")}`,
   });
 
-  revalidatePath("/admin/terapia");
+  revalidatePath("/admin/beneficiarios");
   revalidatePath(`/admin/beneficiarios/${beneficiario.id}`);
 
   return {

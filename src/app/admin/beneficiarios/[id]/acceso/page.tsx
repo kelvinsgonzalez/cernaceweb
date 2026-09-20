@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Acceso de la familia" };
 export const dynamic = "force-dynamic";
 
 const QUE_VE = [
-  "Sus datos generales, su programa y su próxima cita.",
+  "Sus datos generales, sus terapias y su próxima cita.",
   "El objetivo del tratamiento, sin las anotaciones internas del equipo.",
   "Los avances marcados como compartidos, con sus fotos.",
   "Los documentos marcados como compartidos.",

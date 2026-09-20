@@ -53,6 +53,8 @@ const CLAVES_ALERTA: ClaveAlerta[] = [
   "sin-padrino",
   "incompletos",
   "sin-terapia",
+  "sin-equipo",
+  "mis-casos",
 ];
 
 function esClaveAlerta(valor: string | undefined): valor is ClaveAlerta {
@@ -64,14 +66,13 @@ export default async function BeneficiariosPage({
 }: {
   searchParams: Promise<{
     q?: string;
-    programa?: string;
     estado?: string;
     alerta?: string;
   }>;
 }) {
   const usuario = await requirePermiso(PERMISOS.EXPEDIENTE_LEER);
   const puedeAbrir = tienePermiso(usuario, PERMISOS.EXPEDIENTE_ESCRIBIR);
-  const { q, programa, estado, alerta } = await searchParams;
+  const { q, estado, alerta } = await searchParams;
 
   const busqueda = q?.trim() ?? "";
   const alertaActiva = esClaveAlerta(alerta) ? alerta : null;
@@ -86,6 +87,16 @@ export default async function BeneficiariosPage({
     "sin-padrino": { padrinazgos: { none: { activo: true } } },
     incompletos: { estadoExpediente: { not: "COMPLETO" } },
     "sin-terapia": filtroSinTerapiaReciente(limite),
+    // Aprobados para terapia pero sin nadie que les registre avances.
+    "sin-equipo": {
+      estado: "ACTIVO",
+      plan: { is: { activo: true } },
+      responsables: { none: { activo: true } },
+    },
+    // Los niños de los que la persona con sesión es responsable.
+    "mis-casos": {
+      responsables: { some: { terapeutaId: usuario.id, activo: true } },
+    },
   };
 
   const filtros = {
@@ -103,7 +114,6 @@ export default async function BeneficiariosPage({
           ],
         }
       : {}),
-    ...(programa ? { programaId: programa } : {}),
     ...(estado
       ? { estado: estado as "ACTIVO" | "INACTIVO" | "EGRESADO" }
       : {}),
@@ -116,7 +126,8 @@ export default async function BeneficiariosPage({
     sinPadrino,
     incompletos,
     sinTerapia,
-    programas,
+    sinEquipo,
+    misCasos,
     beneficiarios,
   ] = await Promise.all([
     prisma.beneficiario.count(),
@@ -124,15 +135,12 @@ export default async function BeneficiariosPage({
     prisma.beneficiario.count({ where: filtrosAlerta["sin-padrino"] }),
     prisma.beneficiario.count({ where: filtrosAlerta.incompletos }),
     prisma.beneficiario.count({ where: filtrosAlerta["sin-terapia"] }),
-    prisma.programa.findMany({
-      orderBy: { nombre: "asc" },
-      select: { id: true, nombre: true },
-    }),
+    prisma.beneficiario.count({ where: filtrosAlerta["sin-equipo"] }),
+    prisma.beneficiario.count({ where: filtrosAlerta["mis-casos"] }),
     prisma.beneficiario.findMany({
       where: filtros,
       orderBy: { codigoExpediente: "asc" },
       include: {
-        programa: { select: { nombre: true } },
         padrinazgos: {
           where: { activo: true },
           select: { padrino: { select: { nombre: true } } },
@@ -170,10 +178,28 @@ export default async function BeneficiariosPage({
       valor: sinTerapia,
       tono: "aviso",
     },
+    {
+      clave: "sin-equipo",
+      etiqueta: "Aprobados sin equipo",
+      detalle: "Con plan de terapia activo y ningún responsable asignado.",
+      valor: sinEquipo,
+      tono: "aviso",
+    },
+    // La fila solo aparece a quien lleva casos: para el resto sería un cero.
+    ...(misCasos > 0 || alertaActiva === "mis-casos"
+      ? [
+          {
+            clave: "mis-casos" as const,
+            etiqueta: "Mis casos",
+            detalle: "Los niños de los que eres responsable.",
+            valor: misCasos,
+          },
+        ]
+      : []),
   ];
 
   const etiquetaAlerta = filasResumen.find((f) => f.clave === alertaActiva);
-  const hayFiltros = Boolean(busqueda || programa || estado || alertaActiva);
+  const hayFiltros = Boolean(busqueda || estado || alertaActiva);
 
   return (
     <>
@@ -196,7 +222,7 @@ export default async function BeneficiariosPage({
       {/* Filtros con formulario GET: funcionan sin JavaScript. */}
       <Tarjeta className="p-5">
         <form method="get" className="flex flex-wrap items-end gap-4">
-          {/* El filtro del resumen se conserva al buscar o filtrar por programa. */}
+          {/* El filtro del resumen se conserva al buscar o filtrar por estado. */}
           {alertaActiva ? (
             <input type="hidden" name="alerta" value={alertaActiva} />
           ) : null}
@@ -215,25 +241,6 @@ export default async function BeneficiariosPage({
               aria-describedby="q-ayuda"
               className="rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink"
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="programa" className="text-sm font-semibold text-ink">
-              Programa
-            </label>
-            <select
-              id="programa"
-              name="programa"
-              defaultValue={programa ?? ""}
-              className="rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink"
-            >
-              <option value="">Todos</option>
-              {programas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="flex flex-col gap-1.5">

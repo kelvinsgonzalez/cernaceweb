@@ -367,7 +367,6 @@ const esquemaAceptacion = z.object({
   sector: opcional,
   telefono: opcional,
   solicitaPatrocinio: z.string().optional(),
-  programaId: z.string().min(1, "Elige el programa al que ingresa."),
   centroAtencion: z
     .string()
     .trim()
@@ -452,27 +451,15 @@ export async function aceptarSolicitud(
 
   const codigo = v.codigoExpediente.toUpperCase();
 
-  const [repetido, programa] = await Promise.all([
-    prisma.beneficiario.findUnique({
-      where: { codigoExpediente: codigo },
-      select: { id: true },
-    }),
-    prisma.programa.findUnique({
-      where: { id: v.programaId },
-      select: { id: true, nombre: true },
-    }),
-  ]);
+  const repetido = await prisma.beneficiario.findUnique({
+    where: { codigoExpediente: codigo },
+    select: { id: true },
+  });
 
   if (repetido) {
     return {
       error: "Revisa los campos marcados.",
       errores: { codigoExpediente: "Ya hay un expediente con este código." },
-    };
-  }
-  if (!programa) {
-    return {
-      error: "Revisa los campos marcados.",
-      errores: { programaId: "Ese programa ya no existe." },
     };
   }
 
@@ -515,7 +502,6 @@ export async function aceptarSolicitud(
         telefono: v.telefono || null,
         solicitaPatrocinio: v.solicitaPatrocinio === "on",
         fechaIngreso: fechaDesdeInput(v.fechaIngreso),
-        programaId: programa.id,
         centroAtencion: v.centroAtencion,
         encargadoId: encargado.id,
       },

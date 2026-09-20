@@ -30,7 +30,7 @@ const COLUMNAS = [
 ];
 
 export default async function VoluntariosPage() {
-  await requirePermiso(PERMISOS.SOLICITUDES_ATENDER);
+  await requirePermiso(PERMISOS.CONTACTO_ATENDER);
 
   const postulaciones = await prisma.volunteerApplication.findMany({
     orderBy: { createdAt: "desc" },

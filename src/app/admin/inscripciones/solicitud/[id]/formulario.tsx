@@ -24,7 +24,6 @@ export type ValoresPapeleta = {
   escolaridad: string;
   sector: string;
   telefono: string;
-  programaId: string;
   centroAtencion: string;
   fechaIngreso: string;
   encargadoNombre: string;
@@ -52,8 +51,6 @@ const claseAncha = "sm:col-span-2 lg:col-span-3";
 export function FormularioPapeleta({
   accion,
   valores,
-  programas,
-  areas,
   puedeClinico,
 }: {
   accion: (
@@ -61,8 +58,6 @@ export function FormularioPapeleta({
     datos: FormData,
   ) => Promise<EstadoFormulario>;
   valores: ValoresPapeleta;
-  programas: { id: string; nombre: string }[];
-  areas: string[];
   puedeClinico: boolean;
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
@@ -177,24 +172,6 @@ export function FormularioPapeleta({
           error={e.codigoExpediente}
           autoComplete="off"
         />
-        <CampoSelect
-          id="programaId"
-          name="programaId"
-          etiqueta="Programa"
-          ayuda="El definitivo, no el que pidió la familia."
-          requerido
-          defaultValue={valores.programaId}
-          error={e.programaId}
-        >
-          <option value="" disabled>
-            Selecciona el programa
-          </option>
-          {programas.map((programa) => (
-            <option key={programa.id} value={programa.id}>
-              {programa.nombre}
-            </option>
-          ))}
-        </CampoSelect>
         <CampoCentro
           defaultValue={valores.centroAtencion}
           error={e.centroAtencion}
@@ -386,20 +363,14 @@ export function FormularioPapeleta({
           etiqueta="Referido por"
           error={e.referidoPor}
         />
-        <CampoSelect
+        <CampoTexto
           id="areaServicio"
           name="areaServicio"
           etiqueta="Área de servicio"
-          defaultValue=""
+          ayuda="La terapia o el área en la que ingresa. Las terapias del niño se anotan después en su expediente."
           error={e.areaServicio}
-        >
-          <option value="">Sin asignar</option>
-          {areas.map((area) => (
-            <option key={area} value={area}>
-              {area}
-            </option>
-          ))}
-        </CampoSelect>
+          autoComplete="off"
+        />
         <CampoTexto
           id="responsableInscripcion"
           name="responsableInscripcion"

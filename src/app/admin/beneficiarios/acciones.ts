@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
+import {
+  registrarAuditoria,
+  requireAlgunPermiso,
+  requirePermiso,
+} from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { fechaDesdeInput } from "@/lib/fechas";
 import { erroresDeZod, type EstadoFormulario } from "@/lib/formularios";
@@ -81,7 +85,6 @@ const esquemaDatosGenerales = z.object({
   encargadoIntegrantes: opcional,
   encargadoDireccion: opcional,
   fechaIngreso: fecha,
-  programaId: z.string().min(1, "Selecciona un programa."),
   centroAtencion: z
     .string()
     .trim()
@@ -131,7 +134,6 @@ function datosDelBeneficiario(v: z.infer<typeof esquemaDatosGenerales>) {
     escolaridad: v.escolaridad || null,
     telefono: v.telefono || null,
     fechaIngreso: fechaDesdeInput(v.fechaIngreso),
-    programaId: v.programaId,
     centroAtencion: v.centroAtencion,
     solicitaPatrocinio: v.solicitaPatrocinio === "on",
     estado: v.estado,
@@ -420,7 +422,6 @@ const esquemaClinico = z.object({
   alergias: opcional,
   medicamentos: opcional,
   antecedentes: opcional,
-  terapias: opcional,
 });
 
 /**
@@ -464,7 +465,6 @@ export async function guardarExpedienteClinico(
     alergias: v.alergias || null,
     medicamentos: v.medicamentos || null,
     antecedentes: v.antecedentes || null,
-    terapias: aLista(v.terapias),
   };
 
   const existia = await prisma.expedienteClinico.count({
@@ -487,6 +487,196 @@ export async function guardarExpedienteClinico(
 
   revalidatePath(`/admin/beneficiarios/${beneficiario.id}`);
   return { ok: "Expediente clínico guardado." };
+}
+
+/**
+ * Terapias que recibe el beneficiario. Son texto libre a propósito: el
+ * programa de la landing es un referente para quien visita el sitio, y lo que
+ * cada niño recibe se anota aquí con sus propias palabras, tantas como haga
+ * falta y con una explicación más larga si el caso lo pide.
+ *
+ * Las lleva quien edita el expediente o quien escribe el área clínica: el
+ * terapeuta que atiende al niño es quien mejor sabe qué terapia recibe.
+ */
+const PERMISOS_TERAPIAS = [
+  PERMISOS.EXPEDIENTE_ESCRIBIR,
+  PERMISOS.EXPEDIENTE_CLINICO_ESCRIBIR,
+];
+
+const esquemaTerapia = z.object({
+  beneficiarioId: z.string().min(1),
+  nombre: z
+    .string()
+    .trim()
+    .min(3, "Escribe el nombre de la terapia.")
+    .max(80, "El nombre es demasiado largo."),
+  detalle: z
+    .string()
+    .trim()
+    .max(2000, "La explicación no puede pasar de 2000 caracteres.")
+    .optional(),
+});
+
+export async function agregarTerapia(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const usuario = await requireAlgunPermiso(PERMISOS_TERAPIAS);
+
+  const parseo = esquemaTerapia.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const beneficiario = await prisma.beneficiario.findUnique({
+    where: { id: v.beneficiarioId },
+    select: {
+      id: true,
+      codigoExpediente: true,
+      terapias: { select: { nombre: true, orden: true } },
+    },
+  });
+  if (!beneficiario) return { error: "Ese beneficiario ya no existe." };
+
+  const repetida = beneficiario.terapias.some(
+    (t) => t.nombre.toLowerCase() === v.nombre.toLowerCase(),
+  );
+  if (repetida) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: { nombre: "Ese niño ya tiene una terapia con ese nombre." },
+    };
+  }
+
+  const orden =
+    beneficiario.terapias.reduce((max, t) => Math.max(max, t.orden), -1) + 1;
+
+  await prisma.terapiaBeneficiario.create({
+    data: {
+      beneficiarioId: beneficiario.id,
+      nombre: v.nombre,
+      detalle: v.detalle || null,
+      orden,
+    },
+  });
+
+  await registrarAuditoria({
+    actor: usuario.email,
+    accion: "CREAR",
+    entidad: "TerapiaBeneficiario",
+    entidadId: beneficiario.id,
+    detalle: `Terapia «${v.nombre}» añadida al expediente ${beneficiario.codigoExpediente}`,
+  });
+
+  refrescarTerapias(beneficiario.id);
+  return { ok: `Terapia «${v.nombre}» añadida.` };
+}
+
+const esquemaTerapiaEditada = esquemaTerapia.extend({
+  terapiaId: z.string().min(1),
+});
+
+export async function actualizarTerapia(
+  _estado: EstadoFormulario,
+  datos: FormData,
+): Promise<EstadoFormulario> {
+  const usuario = await requireAlgunPermiso(PERMISOS_TERAPIAS);
+
+  const parseo = esquemaTerapiaEditada.safeParse(Object.fromEntries(datos));
+  if (!parseo.success) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: erroresDeZod(parseo.error),
+    };
+  }
+
+  const v = parseo.data;
+  const terapia = await prisma.terapiaBeneficiario.findUnique({
+    where: { id: v.terapiaId },
+    select: {
+      id: true,
+      nombre: true,
+      beneficiarioId: true,
+      beneficiario: {
+        select: {
+          codigoExpediente: true,
+          terapias: { select: { id: true, nombre: true } },
+        },
+      },
+    },
+  });
+  if (!terapia || terapia.beneficiarioId !== v.beneficiarioId) {
+    return { error: "Esa terapia ya no existe." };
+  }
+
+  const repetida = terapia.beneficiario.terapias.some(
+    (t) => t.id !== terapia.id && t.nombre.toLowerCase() === v.nombre.toLowerCase(),
+  );
+  if (repetida) {
+    return {
+      error: "Revisa los campos marcados.",
+      errores: { nombre: "Ese niño ya tiene otra terapia con ese nombre." },
+    };
+  }
+
+  await prisma.terapiaBeneficiario.update({
+    where: { id: terapia.id },
+    data: { nombre: v.nombre, detalle: v.detalle || null },
+  });
+
+  await registrarAuditoria({
+    actor: usuario.email,
+    accion: "ACTUALIZAR",
+    entidad: "TerapiaBeneficiario",
+    entidadId: terapia.beneficiarioId,
+    detalle:
+      terapia.nombre === v.nombre
+        ? `Terapia «${v.nombre}» corregida en el expediente ${terapia.beneficiario.codigoExpediente}`
+        : `Terapia «${terapia.nombre}» pasa a llamarse «${v.nombre}» en el expediente ${terapia.beneficiario.codigoExpediente}`,
+  });
+
+  refrescarTerapias(terapia.beneficiarioId);
+  return { ok: "Terapia guardada." };
+}
+
+export async function eliminarTerapia(datos: FormData): Promise<void> {
+  const usuario = await requireAlgunPermiso(PERMISOS_TERAPIAS);
+  const id = String(datos.get("id") ?? "");
+  if (!id) return;
+
+  const terapia = await prisma.terapiaBeneficiario.findUnique({
+    where: { id },
+    select: {
+      nombre: true,
+      beneficiarioId: true,
+      beneficiario: { select: { codigoExpediente: true } },
+    },
+  });
+  if (!terapia) return;
+
+  await prisma.terapiaBeneficiario.delete({ where: { id } });
+
+  await registrarAuditoria({
+    actor: usuario.email,
+    accion: "ELIMINAR",
+    entidad: "TerapiaBeneficiario",
+    entidadId: terapia.beneficiarioId,
+    detalle: `Terapia «${terapia.nombre}» retirada del expediente ${terapia.beneficiario.codigoExpediente}`,
+  });
+
+  refrescarTerapias(terapia.beneficiarioId);
+}
+
+/** Las terapias se ven en el expediente, en el sitio público y en los portales. */
+function refrescarTerapias(beneficiarioId: string) {
+  revalidatePath(`/admin/beneficiarios/${beneficiarioId}`);
+  revalidatePath("/apadrina");
+  revalidatePath(`/apadrina/${beneficiarioId}`);
+  revalidatePath("/");
 }
 
 const esquemaEvaluacion = z.object({
@@ -1096,8 +1286,7 @@ export async function subirDocumento(
   });
 
   revalidatePath(`/admin/beneficiarios/${beneficiario.id}`);
-  revalidatePath("/admin/documentos");
-  redirect(`/admin/beneficiarios/${beneficiario.id}#documentos`);
+  return { ok: `Documento «${v.nombre}» adjuntado al expediente.` };
 }
 
 /**
@@ -1162,7 +1351,6 @@ export async function actualizarDocumento(
   });
 
   revalidatePath(`/admin/beneficiarios/${documento.beneficiarioId}`);
-  revalidatePath("/admin/documentos");
   return { ok: "Documento actualizado." };
 }
 
@@ -1195,7 +1383,6 @@ export async function eliminarDocumento(datos: FormData): Promise<void> {
   });
 
   revalidatePath(`/admin/beneficiarios/${documento.beneficiarioId}`);
-  revalidatePath("/admin/documentos");
 }
 
 /**

@@ -14,7 +14,9 @@ export type ClaveAlerta =
   | "con-padrino"
   | "sin-padrino"
   | "incompletos"
-  | "sin-terapia";
+  | "sin-terapia"
+  | "sin-equipo"
+  | "mis-casos";
 
 export type FilaResumen = {
   clave: ClaveAlerta | null;

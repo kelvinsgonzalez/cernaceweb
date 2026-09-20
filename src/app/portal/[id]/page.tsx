@@ -1,14 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, FileText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, FileText, HeartPulse, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Chip, Tarjeta, Vacio } from "@/components/ui";
-import { IconoPrograma } from "@/components/icono-programa";
 import { calcularEdad, formatFecha, formatQuetzales } from "@/lib/fechas";
-import { aNumero, formatTamano, primerNombre } from "@/lib/utils";
+import { aNumero, formatTamano, listarTerapias, primerNombre } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +34,7 @@ export default async function ProgresoPage({
               nombres: true,
               fechaNacimiento: true,
               fechaIngreso: true,
-              programa: { select: { nombre: true, descripcion: true, icono: true } },
+              terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
               seguimientos: {
                 where: { visibleParaPadrino: true },
                 orderBy: { fecha: "desc" },
@@ -106,8 +105,8 @@ export default async function ProgresoPage({
               {nombre}, {calcularEdad(nino.fechaNacimiento)} años
             </h1>
             <p className="mt-1 inline-flex items-center gap-2 text-brand-primary">
-              <IconoPrograma nombre={nino.programa.icono} className="size-4" />
-              {nino.programa.nombre}
+              <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
+              {listarTerapias(nino.terapias)}
             </p>
           </div>
         </div>
@@ -253,7 +252,7 @@ export default async function ProgresoPage({
           className="mt-0.5 size-5 shrink-0 text-brand-dark"
         />
         <p className="medida-lectura text-sm text-brand-dark">
-          Como padrino ves el nombre, la edad, el programa, los avances
+          Como padrino ves el nombre, la edad, las terapias, los avances
           publicados y los documentos que el equipo comparte contigo. El diagnóstico, la ficha socioeconómica y los datos de la
           familia son confidenciales y no se comparten.
         </p>

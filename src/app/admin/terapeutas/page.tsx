@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/sesion";
+import { requirePermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS, ROLES } from "@/lib/rbac";
 import { Chip, Kpi, Tarjeta, TarjetaCabecera } from "@/components/ui";
 import {
@@ -30,7 +30,10 @@ const COLUMNAS = [
 ];
 
 export default async function TerapeutasPage() {
-  await requirePermiso(PERMISOS.TERAPEUTAS_GESTIONAR);
+  const actor = await requirePermiso(PERMISOS.TERAPEUTAS_LEER);
+  // Ver el equipo y administrar sus cuentas son dos permisos distintos: quien
+  // solo da seguimiento ve la lista sin el formulario de alta.
+  const gestiona = tienePermiso(actor, PERMISOS.TERAPEUTAS_GESTIONAR);
 
   const terapeutas = await prisma.user.findMany({
     where: { roles: { some: { role: { clave: ROLES.TERAPEUTA } } } },
@@ -55,13 +58,17 @@ export default async function TerapeutasPage() {
     <>
       <EncabezadoPagina
         titulo="Terapeutas"
-        descripcion="El equipo que atiende a los niños. Aquí se dan de alta y de baja; a qué niño atiende cada quien se decide en Terapia."
+        descripcion={
+          gestiona
+            ? "El equipo que atiende a los niños. Aquí se dan de alta y de baja; a qué niño atiende cada quien se decide en el expediente de cada beneficiario."
+            : "El equipo que atiende a los niños. Las cuentas las administra el administrador; a qué niño atiende cada quien se decide en el expediente de cada beneficiario."
+        }
         acciones={
           <Link
-            href="/admin/terapia"
+            href="/admin/beneficiarios"
             className="inline-flex items-center text-sm font-semibold text-brand-dark hover:underline"
           >
-            Ir a Terapia
+            Ir a beneficiarios
           </Link>
         }
       />
@@ -72,16 +79,18 @@ export default async function TerapeutasPage() {
         <Kpi etiqueta="Sin casos asignados" valor={sinCasos.length} />
       </div>
 
-      <Tarjeta className="mb-8">
-        <TarjetaCabecera
-          titulo="Dar de alta a un terapeuta"
-          descripcion="La cuenta se crea con el rol de terapeuta y nada más: expediente clínico, avances y documentos de sus casos. No da acceso a la recaudación ni a las cuentas del centro."
-          icono={<UserPlus className="size-5" />}
-        />
-        <div className="p-5">
-          <FormularioNuevoTerapeuta accion={crearTerapeuta} />
-        </div>
-      </Tarjeta>
+      {gestiona ? (
+        <Tarjeta className="mb-8">
+          <TarjetaCabecera
+            titulo="Dar de alta a un terapeuta"
+            descripcion="La cuenta se crea con el rol de terapeuta y nada más: expediente clínico, avances y documentos de sus casos. No da acceso a la recaudación ni a las cuentas del centro."
+            icono={<UserPlus className="size-5" />}
+          />
+          <div className="p-5">
+            <FormularioNuevoTerapeuta accion={crearTerapeuta} />
+          </div>
+        </Tarjeta>
+      ) : null}
 
       <Tabla
         caption="Cuentas con el rol de terapeuta, sus casos activos y su estado"

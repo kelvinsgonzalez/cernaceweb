@@ -84,6 +84,9 @@ model User {
   email        String     @unique
   passwordHash String
   cargo        String?
+  /// Reseña profesional breve. La llena quien administra el equipo y la lee
+  /// quien arma el equipo responsable de un niño.
+  curriculum   String?
   activo       Boolean    @default(true)
   ultimoAcceso DateTime?
   createdAt    DateTime   @default(now())
@@ -148,6 +151,9 @@ model RolePermission {
 // Beneficiarios y expediente
 // ---------------------------------------------------------------------------
 
+/// Programas que el centro presenta en el sitio público. Son un referente de
+/// la landing y nada más: no atan a ningún beneficiario. Lo que recibe cada
+/// niño se anota en su expediente como terapias (`TerapiaBeneficiario`).
 model Programa {
   id             String         @id @default(cuid())
   nombre         String
@@ -155,7 +161,6 @@ model Programa {
   icono          String         @default("HeartHandshake")
   activo         Boolean        @default(true)
   createdAt      DateTime       @default(now())
-  beneficiarios  Beneficiario[]
 
   @@map("programas")
 }
@@ -183,7 +188,6 @@ model Beneficiario {
   /// la ficha la llena el personal.
   userId            String?            @unique
   fechaIngreso      DateTime           @db.Date
-  programaId        String
   /// Centro donde recibe la terapia. CERNACE atiende en dos centros de apoyo
   /// del municipio de Cuilco, Huehuetenango: San Pedro y Posonicapa. Es texto
   /// libre para poder abrir otro sin migración; el predeterminado es San Pedro.
@@ -203,10 +207,10 @@ model Beneficiario {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
-  programa          Programa           @relation(fields: [programaId], references: [id])
   encargado         Encargado?         @relation(fields: [encargadoId], references: [id], onDelete: SetNull)
   usuario           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   inscripciones     Inscripcion[]
+  terapias          TerapiaBeneficiario[]
   plan              PlanTerapeutico?
   responsables      AsignacionTerapeuta[]
   expedienteClinico ExpedienteClinico?
@@ -219,9 +223,25 @@ model Beneficiario {
   padrinazgos       Padrinazgo[]
   solicitud         SupportRequest?
 
-  @@index([programaId])
   @@index([encargadoId])
   @@map("beneficiarios")
+}
+
+/// Terapias que recibe un beneficiario, en sus propias palabras: un nombre y,
+/// si hace falta, una explicación más larga. Son varias por niño y se llevan
+/// desde su expediente; sustituyen al programa único de antes.
+model TerapiaBeneficiario {
+  id             String       @id @default(cuid())
+  beneficiarioId String
+  nombre         String
+  detalle        String?
+  orden          Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  beneficiario   Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)
+
+  @@index([beneficiarioId])
+  @@map("terapias_beneficiario")
 }
 
 /// El encargado vive aparte del beneficiario porque un mismo adulto puede
@@ -292,7 +312,6 @@ model ExpedienteClinico {
   alergias            String?
   medicamentos        String?
   antecedentes        String?
-  terapias            String[]
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   beneficiario        Beneficiario @relation(fields: [beneficiarioId], references: [id], onDelete: Cascade)

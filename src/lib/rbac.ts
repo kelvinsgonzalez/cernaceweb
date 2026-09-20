@@ -4,6 +4,7 @@
  */
 
 export const PERMISOS = {
+  PANEL_VER: "panel.ver",
   EXPEDIENTE_LEER: "expediente.leer",
   EXPEDIENTE_ESCRIBIR: "expediente.escribir",
   EXPEDIENTE_CLINICO_LEER: "expediente.clinico.leer",
@@ -12,12 +13,12 @@ export const PERMISOS = {
   EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR: "expediente.socioeconomico.escribir",
   BENEFICIARIO_ACCESO: "beneficiario.acceso",
   INSCRIPCIONES_LEER: "inscripciones.leer",
-  PROGRAMAS_LEER: "programas.leer",
   DOCUMENTOS_LEER: "documentos.leer",
   DOCUMENTOS_SUBIR: "documentos.subir",
   SEGUIMIENTO_LEER: "seguimiento.leer",
   SEGUIMIENTO_ESCRIBIR: "seguimiento.escribir",
   TERAPIA_GESTIONAR: "terapia.gestionar",
+  TERAPEUTAS_LEER: "terapeutas.leer",
   TERAPEUTAS_GESTIONAR: "terapeutas.gestionar",
   DONACIONES_LEER: "donaciones.leer",
   DONACIONES_GESTIONAR: "donaciones.gestionar",
@@ -25,6 +26,7 @@ export const PERMISOS = {
   PADRINOS_GESTIONAR: "padrinos.gestionar",
   GALERIA_PUBLICAR: "galeria.publicar",
   SOLICITUDES_ATENDER: "solicitudes.atender",
+  CONTACTO_ATENDER: "contacto.atender",
   CONTENIDO_GESTIONAR: "contenido.gestionar",
   USUARIOS_GESTIONAR: "usuarios.gestionar",
   AUDITORIA_LEER: "auditoria.leer",
@@ -42,6 +44,13 @@ type DefinicionPermiso = {
 };
 
 export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
+  {
+    clave: PERMISOS.PANEL_VER,
+    nombre: "Ver el panel general",
+    descripcion:
+      "Abrir la portada del panel con los indicadores y los últimos avances. Sin este permiso se entra directo al primer módulo disponible.",
+    modulo: "General",
+  },
   {
     clave: PERMISOS.EXPEDIENTE_LEER,
     nombre: "Leer expedientes",
@@ -92,12 +101,6 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     modulo: "Expedientes",
   },
   {
-    clave: PERMISOS.PROGRAMAS_LEER,
-    nombre: "Leer programas",
-    descripcion: "Consultar el catálogo de áreas de atención del centro.",
-    modulo: "Expedientes",
-  },
-  {
     clave: PERMISOS.DOCUMENTOS_LEER,
     nombre: "Leer documentos",
     descripcion: "Consultar los documentos adjuntos al expediente.",
@@ -126,6 +129,13 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
     nombre: "Aprobar y asignar terapia",
     descripcion:
       "Autorizar que un beneficiario reciba terapia, fijar su objetivo general y designar a los responsables.",
+    modulo: "Seguimiento",
+  },
+  {
+    clave: PERMISOS.TERAPEUTAS_LEER,
+    nombre: "Ver el equipo terapéutico",
+    descripcion:
+      "Consultar la lista de terapeutas, su ficha y los casos que llevan, sin tocar sus cuentas.",
     modulo: "Seguimiento",
   },
   {
@@ -171,9 +181,16 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
   },
   {
     clave: PERMISOS.SOLICITUDES_ATENDER,
-    nombre: "Atender formularios recibidos",
+    nombre: "Atender solicitudes de apoyo",
     descripcion:
-      "Revisar y cambiar el estado de las solicitudes de apoyo, las postulaciones de voluntariado y los mensajes de contacto.",
+      "Revisar y cambiar el estado de las solicitudes de apoyo que llegan del formulario público.",
+    modulo: "Entrantes",
+  },
+  {
+    clave: PERMISOS.CONTACTO_ATENDER,
+    nombre: "Atender mensajes y voluntariado",
+    descripcion:
+      "Revisar y cambiar el estado de los mensajes de contacto y las postulaciones de voluntariado.",
     modulo: "Entrantes",
   },
   {
@@ -240,7 +257,7 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     clave: ROLES.DIRECCION,
     nombre: "Dirección",
     descripcion:
-      "Gestiona de principio a fin lo de beneficiarios, padrinos y terapeutas. Lee el resto del panel y la auditoría. Sin administración de cuentas ni de la configuración.",
+      "Da seguimiento a beneficiarios, terapeutas y padrinos: expedientes, asignación de terapia, avances y solicitudes de apoyo. Entra directo a Beneficiarios: sin panel general, cuentas, configuración, recaudación, contenido del sitio ni auditoría.",
     permisos: [
       PERMISOS.EXPEDIENTE_LEER,
       PERMISOS.EXPEDIENTE_ESCRIBIR,
@@ -250,21 +267,16 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR,
       PERMISOS.BENEFICIARIO_ACCESO,
       PERMISOS.INSCRIPCIONES_LEER,
-      PERMISOS.PROGRAMAS_LEER,
       PERMISOS.DOCUMENTOS_LEER,
       PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
       PERMISOS.TERAPIA_GESTIONAR,
-      PERMISOS.TERAPEUTAS_GESTIONAR,
-      PERMISOS.DONACIONES_LEER,
-      PERMISOS.DONACIONES_GESTIONAR,
+      PERMISOS.TERAPEUTAS_LEER,
       PERMISOS.PADRINAZGOS_GESTIONAR,
       PERMISOS.PADRINOS_GESTIONAR,
       PERMISOS.GALERIA_PUBLICAR,
       PERMISOS.SOLICITUDES_ATENDER,
-      PERMISOS.CONTENIDO_GESTIONAR,
-      PERMISOS.AUDITORIA_LEER,
     ],
   },
   {
@@ -273,19 +285,20 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     descripcion:
       "Expediente completo. Edita la ficha socioeconómica y los avances.",
     permisos: [
+      PERMISOS.PANEL_VER,
       PERMISOS.EXPEDIENTE_LEER,
       PERMISOS.EXPEDIENTE_ESCRIBIR,
       PERMISOS.EXPEDIENTE_CLINICO_LEER,
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_LEER,
       PERMISOS.EXPEDIENTE_SOCIOECONOMICO_ESCRIBIR,
       PERMISOS.INSCRIPCIONES_LEER,
-      PERMISOS.PROGRAMAS_LEER,
       PERMISOS.DOCUMENTOS_LEER,
       PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
       PERMISOS.PADRINAZGOS_GESTIONAR,
       PERMISOS.SOLICITUDES_ATENDER,
+      PERMISOS.CONTACTO_ATENDER,
       PERMISOS.CONTENIDO_GESTIONAR,
     ],
   },
@@ -295,6 +308,7 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     descripcion:
       "Área clínica (lectura y escritura), avances y documentos de sus casos. Sin ficha socioeconómica, sin recaudación y sin contenido del sitio.",
     permisos: [
+      PERMISOS.PANEL_VER,
       PERMISOS.EXPEDIENTE_LEER,
       PERMISOS.EXPEDIENTE_CLINICO_LEER,
       PERMISOS.EXPEDIENTE_CLINICO_ESCRIBIR,

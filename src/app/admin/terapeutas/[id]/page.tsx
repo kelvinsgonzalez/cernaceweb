@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, IdCard, KeyRound, Power, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/sesion";
+import { requirePermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS, ROLES } from "@/lib/rbac";
 import { Campo, Chip, Tarjeta, TarjetaCabecera, Vacio } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
@@ -29,7 +29,10 @@ export default async function TerapeutaPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requirePermiso(PERMISOS.TERAPEUTAS_GESTIONAR);
+  const actor = await requirePermiso(PERMISOS.TERAPEUTAS_LEER);
+  // Las acciones del servidor siguen pidiendo terapeutas.gestionar; aquí solo
+  // se decide si se pintan los formularios.
+  const gestiona = tienePermiso(actor, PERMISOS.TERAPEUTAS_GESTIONAR);
 
   const terapeuta = await prisma.user.findUnique({
     where: { id },
@@ -38,6 +41,7 @@ export default async function TerapeutaPage({
       nombre: true,
       email: true,
       cargo: true,
+      curriculum: true,
       activo: true,
       ultimoAcceso: true,
       createdAt: true,
@@ -102,17 +106,42 @@ export default async function TerapeutaPage({
           <Tarjeta>
             <TarjetaCabecera
               titulo="Datos de la cuenta"
-              descripcion="El correo no se cambia desde aquí: es con el que inicia sesión."
+              descripcion={
+                gestiona
+                  ? "El correo no se cambia desde aquí: es con el que inicia sesión."
+                  : "Los datos y el acceso de esta cuenta los administra el administrador."
+              }
               icono={<IdCard className="size-5" />}
             />
             <div className="p-5">
-              <FormularioEditarTerapeuta
-                accion={actualizarTerapeuta}
-                id={terapeuta.id}
-                nombre={terapeuta.nombre}
-                cargo={terapeuta.cargo}
-              />
+              {gestiona ? (
+                <FormularioEditarTerapeuta
+                  accion={actualizarTerapeuta}
+                  id={terapeuta.id}
+                  nombre={terapeuta.nombre}
+                  cargo={terapeuta.cargo}
+                  curriculum={terapeuta.curriculum}
+                />
+              ) : (
+                <dl className="grid gap-5 sm:grid-cols-2">
+                  <Campo etiqueta="Nombre">{terapeuta.nombre}</Campo>
+                  <Campo etiqueta="Cargo">
+                    {terapeuta.cargo ?? <span className="text-ink-soft">Sin cargo</span>}
+                  </Campo>
+                </dl>
+              )}
               <dl className="mt-6 grid gap-5 border-t border-line pt-5 sm:grid-cols-3">
+                <div className="sm:col-span-3">
+                  <Campo etiqueta="Currículum breve">
+                    {terapeuta.curriculum ? (
+                      <span className="medida-lectura block whitespace-pre-line">
+                        {terapeuta.curriculum}
+                      </span>
+                    ) : (
+                      <span className="text-ink-soft">Sin currículum todavía.</span>
+                    )}
+                  </Campo>
+                </div>
                 <Campo etiqueta="Correo">{terapeuta.email}</Campo>
                 <Campo etiqueta="Alta">{formatFecha(terapeuta.createdAt)}</Campo>
                 <Campo etiqueta="Último acceso">
@@ -125,11 +154,11 @@ export default async function TerapeutaPage({
           <Tarjeta>
             <TarjetaCabecera
               titulo="Casos que lleva"
-              descripcion="Quién atiende a cada niño se decide en Terapia. Al dar de baja la cuenta, los casos vivos se cierran con la fecha del día."
+              descripcion="Quién atiende a cada niño se decide en su expediente, en «Plan y equipo». Al dar de baja la cuenta, los casos vivos se cierran con la fecha del día."
               icono={<Users className="size-5" />}
             />
             {terapeuta.asignaciones.length === 0 ? (
-              <Vacio mensaje="Todavía no tiene casos asignados. Se le asignan desde Terapia." />
+              <Vacio mensaje="Todavía no tiene casos asignados. Se le asignan desde el expediente de cada niño." />
             ) : (
               <ul className="divide-y divide-line">
                 {terapeuta.asignaciones.map((a) => (
@@ -177,42 +206,54 @@ export default async function TerapeutaPage({
             </dl>
           </Tarjeta>
 
-          <Tarjeta>
-            <TarjetaCabecera
-              titulo="Contraseña"
-              descripcion="La plataforma no envía correos: comunícasela por un medio seguro."
-              icono={<KeyRound className="size-5" />}
-            />
-            <div className="p-5">
-              <FormularioContrasenaTerapeuta
-                accion={restablecerContrasenaTerapeuta}
-                id={terapeuta.id}
-              />
-            </div>
-          </Tarjeta>
+          {gestiona ? (
+            <>
+              <Tarjeta>
+                <TarjetaCabecera
+                  titulo="Contraseña"
+                  descripcion="La plataforma no envía correos: comunícasela por un medio seguro."
+                  icono={<KeyRound className="size-5" />}
+                />
+                <div className="p-5">
+                  <FormularioContrasenaTerapeuta
+                    accion={restablecerContrasenaTerapeuta}
+                    id={terapeuta.id}
+                  />
+                </div>
+              </Tarjeta>
 
-          <Tarjeta>
-            <TarjetaCabecera
-              titulo="Estado de la cuenta"
-              descripcion="Dar de baja impide iniciar sesión y cierra los casos que llevaba. No se borra nada: sus avances y documentos quedan en el expediente."
-              icono={<Power className="size-5" />}
-            />
-            <div className="p-5">
-              {terapeuta.activo && vivas.length > 0 ? (
-                <p className="medida-lectura mb-4 text-sm text-ink-soft">
-                  Lleva {vivas.length}{" "}
-                  {vivas.length === 1 ? "caso" : "casos"}. Al darlo de baja
-                  habrá que reasignar{" "}
-                  {vivas.length === 1 ? "ese niño" : "esos niños"} desde Terapia.
-                </p>
-              ) : null}
-              <BotonEstadoTerapeuta
-                accion={cambiarEstadoTerapeuta}
-                id={terapeuta.id}
-                activo={terapeuta.activo}
+              <Tarjeta>
+                <TarjetaCabecera
+                  titulo="Estado de la cuenta"
+                  descripcion="Dar de baja impide iniciar sesión y cierra los casos que llevaba. No se borra nada: sus avances y documentos quedan en el expediente."
+                  icono={<Power className="size-5" />}
+                />
+                <div className="p-5">
+                  {terapeuta.activo && vivas.length > 0 ? (
+                    <p className="medida-lectura mb-4 text-sm text-ink-soft">
+                      Lleva {vivas.length}{" "}
+                      {vivas.length === 1 ? "caso" : "casos"}. Al darlo de baja
+                      habrá que reasignar{" "}
+                      {vivas.length === 1 ? "ese niño" : "esos niños"} desde su expediente.
+                    </p>
+                  ) : null}
+                  <BotonEstadoTerapeuta
+                    accion={cambiarEstadoTerapeuta}
+                    id={terapeuta.id}
+                    activo={terapeuta.activo}
+                  />
+                </div>
+              </Tarjeta>
+            </>
+          ) : (
+            <Tarjeta>
+              <TarjetaCabecera
+                titulo="Cuenta"
+                descripcion="La contraseña y el alta o baja de esta cuenta las administra el administrador."
+                icono={<KeyRound className="size-5" />}
               />
-            </div>
-          </Tarjeta>
+            </Tarjeta>
+          )}
         </div>
       </div>
     </>

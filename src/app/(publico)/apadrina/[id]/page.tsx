@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, HeartPulse, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { EnlaceBoton, Tarjeta } from "@/components/ui";
-import { IconoPrograma } from "@/components/icono-programa";
+import { Chip, EnlaceBoton, Tarjeta } from "@/components/ui";
 import { FotoBeneficiario } from "@/components/foto-beneficiario";
 import { calcularEdad } from "@/lib/fechas";
-import { primerNombre, urlFotoBeneficiario } from "@/lib/utils";
+import { listarTerapias, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -48,7 +47,7 @@ export default async function PerfilPublicoPage({
       fechaNacimiento: true,
       resumenPublico: true,
       fotoArchivo: true,
-      programa: { select: { nombre: true, descripcion: true, icono: true } },
+      terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
       padrinazgos: { where: { activo: true }, select: { id: true } },
     },
   });
@@ -80,8 +79,8 @@ export default async function PerfilPublicoPage({
               {nombre}, {calcularEdad(nino.fechaNacimiento)} años
             </h1>
             <p className="mt-1 inline-flex items-center gap-2 text-brand-primary">
-              <IconoPrograma nombre={nino.programa.icono} className="size-4" />
-              {nino.programa.nombre}
+              <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
+              {listarTerapias(nino.terapias)}
             </p>
           </div>
         </div>
@@ -92,12 +91,20 @@ export default async function PerfilPublicoPage({
           </p>
         ) : null}
 
-        <h2 className="mt-8 font-heading text-lg font-semibold text-ink">
-          Sobre su programa
-        </h2>
-        <p className="medida-lectura mt-2 text-ink-soft">
-          {nino.programa.descripcion}
-        </p>
+        {nino.terapias.length > 0 ? (
+          <>
+            <h2 className="mt-8 font-heading text-lg font-semibold text-ink">
+              Terapias que recibe
+            </h2>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {nino.terapias.map((terapia) => (
+                <li key={terapia.nombre}>
+                  <Chip tono="info">{terapia.nombre}</Chip>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
 
         <div className="mt-8 flex items-start gap-3 rounded-[var(--radius-sm)] bg-brand-sky p-5">
           <ShieldCheck

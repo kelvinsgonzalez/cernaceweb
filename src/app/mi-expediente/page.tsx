@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { CalendarDays, FileText, ShieldCheck, Target } from "lucide-react";
+import { CalendarDays, FileText, HeartPulse, ShieldCheck, Target } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Chip, Tarjeta, Vacio } from "@/components/ui";
-import { IconoPrograma } from "@/components/icono-programa";
 import { FotoBeneficiario } from "@/components/foto-beneficiario";
 import { calcularEdad, formatFecha, formatFechaHora } from "@/lib/fechas";
-import { formatTamano, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
+import { formatTamano, listarTerapias, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Mi expediente" };
 
@@ -30,7 +29,10 @@ export default async function MiExpedientePage() {
           fechaNacimiento: true,
           fechaIngreso: true,
           fotoArchivo: true,
-          programa: { select: { nombre: true, descripcion: true, icono: true } },
+          terapias: {
+            orderBy: { orden: "asc" },
+            select: { id: true, nombre: true, detalle: true },
+          },
           // Del plan solo el objetivo: las anotaciones son indicaciones
           // internas para el equipo y no salen de él.
           plan: { select: { activo: true, objetivoGeneral: true } },
@@ -111,11 +113,8 @@ export default async function MiExpedientePage() {
               {beneficiario.nombres} {beneficiario.apellidos}
             </h1>
             <p className="mt-1 inline-flex items-center gap-2 text-brand-primary">
-              <IconoPrograma
-                nombre={beneficiario.programa.icono}
-                className="size-4"
-              />
-              {beneficiario.programa.nombre}
+              <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
+              {listarTerapias(beneficiario.terapias)}
             </p>
           </div>
         </div>
