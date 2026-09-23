@@ -78,7 +78,7 @@ export function TarjetaCabecera({
    Botones y enlaces de acción
    ------------------------------------------------------------------------- */
 
-type Variante = "solido" | "contorno" | "suave" | "peligro";
+type Variante = "solido" | "contorno" | "suave" | "peligro" | "gris";
 
 const estilosBoton: Record<Variante, string> = {
   solido:
@@ -88,6 +88,8 @@ const estilosBoton: Record<Variante, string> = {
   suave: "bg-brand-sky text-brand-dark border border-transparent hover:bg-crema",
   peligro:
     "bg-danger text-white border border-transparent shadow-suave hover:bg-danger-dark",
+  // Acción secundaria que no compite con la principal: informes, exportaciones.
+  gris: "bg-canvas text-ink-soft border border-line hover:border-ink-soft/50 hover:bg-line/60 hover:text-ink",
 };
 
 // El botón se levanta un pixel al pasar el puntero; con `prefers-reduced-motion`

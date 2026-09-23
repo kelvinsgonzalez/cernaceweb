@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Activity,
+  BellRing,
   FolderOpen,
   HandCoins,
   Inbox,
@@ -18,6 +19,12 @@ import { Chip, Kpi, Tarjeta, TarjetaCabecera, Vacio } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { formatFecha, formatFechaHora, formatQuetzales } from "@/lib/fechas";
 import { aNumero } from "@/lib/utils";
+import {
+  DIAS_CADUCA_PRONTO,
+  diasEntre,
+  necesitaAvisoAdmin,
+  resumenesCompromisos,
+} from "@/lib/aportes";
 
 export const metadata: Metadata = { title: "Panel" };
 
@@ -82,6 +89,9 @@ export default async function PanelPage() {
     ? await prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 6 })
     : [];
 
+  // Los avisos de recaudación: solo para quien puede verla.
+  const avisos = puedeVerDonaciones ? await avisosRecaudacion() : null;
+
   return (
     <>
       <EncabezadoPagina
@@ -126,6 +136,35 @@ export default async function PanelPage() {
           />
         )}
       </div>
+
+      {avisos ? (
+        <Tarjeta className="mt-8">
+          <TarjetaCabecera
+            titulo="Recaudación: lo que espera tu decisión"
+            icono={<BellRing className="size-5" />}
+          />
+          <ul className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <li className="px-5 py-4">
+              <p className="font-heading text-2xl font-semibold text-ink">{avisos.porVerificar}</p>
+              <Link href="/admin/donaciones?estado=POR_VERIFICAR" className="text-sm font-semibold text-brand-primary hover:underline">
+                {avisos.porVerificar === 1 ? "comprobante por verificar" : "comprobantes por verificar"}
+              </Link>
+            </li>
+            <li className="px-5 py-4">
+              <p className="font-heading text-2xl font-semibold text-ink">{avisos.sinAportar}</p>
+              <Link href="/admin/asignaciones" className="text-sm font-semibold text-brand-primary hover:underline">
+                {avisos.sinAportar === 1 ? "padrino con más de 6 meses sin aportar" : "padrinos con más de 6 meses sin aportar"}
+              </Link>
+            </li>
+            <li className="px-5 py-4">
+              <p className="font-heading text-2xl font-semibold text-ink">{avisos.caducan}</p>
+              <Link href="/admin/asignaciones" className="text-sm font-semibold text-brand-primary hover:underline">
+                {avisos.caducan === 1 ? "compromiso caducado o por caducar" : "compromisos caducados o por caducar"}
+              </Link>
+            </li>
+          </ul>
+        </Tarjeta>
+      ) : null}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Tarjeta>
@@ -239,4 +278,35 @@ export default async function PanelPage() {
       </div>
     </>
   );
+}
+
+/**
+ * Lo que la administración tiene pendiente en recaudación: comprobantes sin
+ * revisar, padrinos con más de seis meses sin aportar y compromisos que
+ * caducan en los próximos treinta días o ya caducaron.
+ */
+async function avisosRecaudacion() {
+  const hoy = new Date();
+  const [porVerificar, activos] = await Promise.all([
+    prisma.donacion.count({
+      where: { estado: "PENDIENTE", boletaArchivo: { not: null } },
+    }),
+    prisma.padrinazgo.findMany({
+      where: { activo: true },
+      select: { id: true, fechaInicio: true, caducaEl: true, avisoAtendidoEl: true },
+    }),
+  ]);
+  const resumenes = await resumenesCompromisos(activos.map((p) => p.id), hoy);
+  const sinAportar = activos.filter((p) =>
+    necesitaAvisoAdmin(
+      resumenes.get(p.id)?.ultimoAporte ?? null,
+      p.fechaInicio,
+      p.avisoAtendidoEl,
+      hoy,
+    ),
+  ).length;
+  const caducan = activos.filter(
+    (p) => p.caducaEl && diasEntre(hoy, p.caducaEl) <= DIAS_CADUCA_PRONTO,
+  ).length;
+  return { porVerificar, sinAportar, caducan };
 }

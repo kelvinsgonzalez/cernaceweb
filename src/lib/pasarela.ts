@@ -1,103 +1,48 @@
 /**
- * Pasarela en modo prueba: no se piden ni se guardan datos de tarjeta.
- * Migrar a Stripe o PayPal debe limitarse a sustituir la implementación de
- * `Pasarela`, sin tocar el resto de la aplicación.
+ * No hay pasarela de pago. Todo aporte, venga de donde venga, entra como una
+ * foto de comprobante que el administrador coteja contra el estado de cuenta.
+ * Lo que queda aquí es lo que sobrevive de aquel módulo: la referencia con la
+ * que se localiza cada aporte, el catálogo de métodos para el reporte y las
+ * cuentas a las que se deposita.
  */
 
-export type IntencionPago = {
-  referencia: string;
-  monto: number;
-  moneda: string;
-  metodo: string;
-};
-
-export type ResultadoPago = {
-  referencia: string;
-  aprobado: boolean;
-  mensaje: string;
-};
-
-export interface Pasarela {
-  readonly nombre: string;
-  readonly modoPrueba: boolean;
-  crearIntencion(datos: {
-    monto: number;
-    moneda: string;
-    metodo: string;
-    descripcion: string;
-  }): Promise<IntencionPago>;
-  confirmar(referencia: string, aprobar: boolean): Promise<ResultadoPago>;
-}
-
-function generarReferencia(): string {
-  const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let sufijo = "";
-  for (let i = 0; i < 6; i += 1) {
-    sufijo += alfabeto[Math.floor(Math.random() * alfabeto.length)];
-  }
-  return `CER-SIM-${sufijo}`;
-}
-
-class PasarelaSimulada implements Pasarela {
-  readonly nombre = "Pasarela simulada CERNACE";
-  readonly modoPrueba = true;
-
-  async crearIntencion(datos: {
-    monto: number;
-    moneda: string;
-    metodo: string;
-    descripcion: string;
-  }): Promise<IntencionPago> {
-    return {
-      referencia: generarReferencia(),
-      monto: datos.monto,
-      moneda: datos.moneda,
-      metodo: datos.metodo,
-    };
-  }
-
-  async confirmar(referencia: string, aprobar: boolean): Promise<ResultadoPago> {
-    return {
-      referencia,
-      aprobado: aprobar,
-      mensaje: aprobar
-        ? "Pago aprobado en modo prueba."
-        : "Pago rechazado en modo prueba.",
-    };
-  }
-}
-
-export const pasarela: Pasarela = new PasarelaSimulada();
+const ALFABETO_REFERENCIA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /**
- * Catálogo de etiquetas, no un menú: el sitio ya no pregunta el método. Quien
- * paga en línea entra por TARJETA y quien deposita en el banco por DEPOSITO.
- * TRANSFERENCIA sigue aquí porque hay aportes antiguos registrados así.
+ * Referencia corta y legible que sale en el comprobante. Con ella el equipo
+ * localiza el aporte cuando el donante escribe.
+ */
+export function generarReferencia(): string {
+  let sufijo = "";
+  for (let i = 0; i < 6; i += 1) {
+    sufijo += ALFABETO_REFERENCIA[Math.floor(Math.random() * ALFABETO_REFERENCIA.length)];
+  }
+  return `CER-${sufijo}`;
+}
+
+/**
+ * Catálogo de métodos. El donante no lo elige: lo anota el administrador al
+ * aprobar, leyendo la foto. TARJETA es un pago con tarjeta hecho fuera del
+ * sitio (un POS, la banca en línea) del que también se sube el comprobante.
  */
 export const METODOS_PAGO = [
-  { valor: "TARJETA", etiqueta: "Tarjeta de crédito o débito" },
+  { valor: "DEPOSITO", etiqueta: "Depósito" },
   { valor: "TRANSFERENCIA", etiqueta: "Transferencia bancaria" },
-  { valor: "DEPOSITO", etiqueta: "Depósito o transferencia" },
+  { valor: "TARJETA", etiqueta: "Pago con tarjeta" },
+  { valor: "EFECTIVO", etiqueta: "Efectivo" },
 ] as const;
 
-/** Método con el que se registra un donativo depositado en el banco. */
-export const METODO_DEPOSITO = "DEPOSITO";
+export type MetodoPago = (typeof METODOS_PAGO)[number]["valor"];
+
+/** Método con el que nace un aporte hasta que el administrador lo anota. */
+export const METODO_DEPOSITO: MetodoPago = "DEPOSITO";
 
 export function etiquetaMetodo(valor: string): string {
   return METODOS_PAGO.find((m) => m.valor === valor)?.etiqueta ?? valor;
 }
 
-/**
- * La tarjeta la resuelve la pasarela; la transferencia y el depósito los
- * resuelve el banco y llegan aquí como una boleta que alguien del equipo tiene
- * que cotejar antes de dar la donación por buena.
- */
-export const METODOS_CON_BOLETA = ["TRANSFERENCIA", "DEPOSITO"] as const;
-
-export function requiereBoleta(metodo: string): boolean {
-  return METODOS_CON_BOLETA.includes(
-    metodo as (typeof METODOS_CON_BOLETA)[number],
-  );
+export function esMetodoPago(valor: string): valor is MetodoPago {
+  return METODOS_PAGO.some((m) => m.valor === valor);
 }
 
 /**
@@ -125,3 +70,35 @@ export const CUENTA_PREDETERMINADA: Record<string, string> = {
   "donaciones.cuentaDolaresNumero": "643788912",
   "donaciones.cuentaDolaresTitular": "Isaías Gálvez",
 };
+
+export type CampoCuenta = { etiqueta: string; valor: string; mono?: boolean };
+
+/**
+ * Las dos cuentas listas para pintar, a partir de la configuración guardada.
+ * Lo usan la página de donar y el formulario de aporte del portal.
+ */
+export function cuentasParaDepositar(
+  ajustes: { clave: string; valor: string }[],
+): { moneda: string; campos: CampoCuenta[] }[] {
+  const cuenta = (clave: string) =>
+    ajustes.find((a) => a.clave === clave)?.valor ?? CUENTA_PREDETERMINADA[clave];
+  return [
+    {
+      moneda: "Quetzales (GTQ)",
+      campos: [
+        { etiqueta: "Banco", valor: cuenta("donaciones.banco") },
+        { etiqueta: "Tipo de cuenta", valor: cuenta("donaciones.cuentaTipo") },
+        { etiqueta: "Número de cuenta", valor: cuenta("donaciones.cuentaNumero"), mono: true },
+        { etiqueta: "A nombre de", valor: cuenta("donaciones.cuentaTitular") },
+      ],
+    },
+    {
+      moneda: "Dólares (USD)",
+      campos: [
+        { etiqueta: "Banco", valor: cuenta("donaciones.bancoDolares") },
+        { etiqueta: "Número de cuenta", valor: cuenta("donaciones.cuentaDolaresNumero"), mono: true },
+        { etiqueta: "A nombre de", valor: cuenta("donaciones.cuentaDolaresTitular") },
+      ],
+    },
+  ];
+}

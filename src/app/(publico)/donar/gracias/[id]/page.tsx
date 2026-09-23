@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CircleAlert, CircleCheck, Clock3, Heart, Printer } from "lucide-react";
+import { CircleAlert, CircleCheck, Heart } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Campo, ChipDonacion, EnlaceBoton, Tarjeta } from "@/components/ui";
 import { formatFechaHora, formatMontoOpcional } from "@/lib/fechas";
-import { etiquetaMetodo, requiereBoleta } from "@/lib/pasarela";
+import { etiquetaMetodo } from "@/lib/pasarela";
 
 export const metadata: Metadata = {
-  title: "Comprobante de donación",
+  title: "Comprobante de aporte",
 };
 
 export const dynamic = "force-dynamic";
@@ -20,33 +20,28 @@ export default async function GraciasPage({
   const { id } = await params;
   const donacion = await prisma.donacion.findUnique({
     where: { id },
-    include: { campaign: { select: { titulo: true } } },
+    include: {
+      campaign: { select: { titulo: true } },
+      beneficiario: { select: { codigoExpediente: true } },
+    },
   });
 
   if (!donacion) notFound();
 
   const aprobada = donacion.estado === "COMPLETADA";
   const enRevision = donacion.estado === "PENDIENTE";
-  const porBanco = requiereBoleta(donacion.metodo);
-  const conBoleta = Boolean(donacion.boletaArchivo);
 
   const titulo = aprobada
-    ? "¡Gracias por tu donación!"
+    ? "¡Gracias por tu aporte!"
     : enRevision
-      ? conBoleta
-        ? "¡Gracias por tu donativo!"
-        : "Tu donación está pendiente"
-      : "El pago no se completó";
+      ? "¡Recibimos tu comprobante!"
+      : "El aporte no se pudo dar por bueno";
 
   const explicacion = aprobada
-    ? "La transacción quedó registrada en el sistema. Este es tu comprobante."
+    ? "El equipo ya cotejó tu comprobante y el aporte quedó registrado. Este es tu comprobante."
     : enRevision
-      ? conBoleta
-        ? "Recibimos tu boleta y ya está en manos del equipo. La cotejaremos contra el estado de cuenta para dar el aporte por bueno. Gracias por sostener el trabajo del centro."
-        : "Todavía no recibimos el comprobante del depósito."
-      : porBanco
-        ? "El equipo no pudo dar por buena esta boleta. Si crees que es un error, escríbenos con la referencia a la vista."
-        : "La pasarela rechazó la transacción en modo prueba. Puedes intentarlo de nuevo cuando quieras.";
+      ? "Ya está en manos del equipo. Lo cotejaremos contra el estado de cuenta para darlo por bueno. Gracias por sostener el trabajo del centro."
+      : "El equipo no pudo dar por buena la foto. Si crees que es un error, escríbenos con la referencia a la vista.";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -58,20 +53,14 @@ export default async function GraciasPage({
               aprobada
                 ? "bg-ok-bg text-ok-fg"
                 : enRevision
-                  ? conBoleta
-                    ? "bg-brand-sky text-brand-primary"
-                    : "bg-warn-bg text-warn-fg"
+                  ? "bg-brand-sky text-brand-primary"
                   : "bg-bad-bg text-bad-fg"
             }`}
           >
             {aprobada ? (
               <CircleCheck className="size-6" />
             ) : enRevision ? (
-              conBoleta ? (
-                <Heart className="size-6" />
-              ) : (
-                <Clock3 className="size-6" />
-              )
+              <Heart className="size-6" />
             ) : (
               <CircleAlert className="size-6" />
             )}
@@ -101,14 +90,14 @@ export default async function GraciasPage({
           </Campo>
           <Campo etiqueta="Monto">
             {donacion.monto === null
-              ? "Lo toma el equipo de tu boleta"
+              ? "Lo toma el equipo de tu comprobante"
               : `${formatMontoOpcional(donacion.monto)} ${donacion.moneda}`}
           </Campo>
           <Campo etiqueta="Método">{etiquetaMetodo(donacion.metodo)}</Campo>
           <Campo etiqueta="Destino">
-            {donacion.destinoNino ??
-              donacion.campaign?.titulo ??
-              "Donde más se necesite"}
+            {donacion.beneficiario
+              ? `Expediente ${donacion.beneficiario.codigoExpediente}`
+              : (donacion.campaign?.titulo ?? "Aportar a lo que se necesite")}
           </Campo>
           <Campo etiqueta="Fecha">{formatFechaHora(donacion.createdAt)}</Campo>
         </dl>
@@ -119,17 +108,12 @@ export default async function GraciasPage({
           </p>
         ) : null}
 
-        <p className="mt-6 rounded-[var(--radius-sm)] bg-warn-bg px-4 py-3 text-sm font-medium text-warn-fg">
-          Comprobante emitido en modo prueba. No tiene validez fiscal.
-        </p>
-
         <div className="mt-8 flex flex-wrap gap-3">
           <EnlaceBoton href="/" variante="contorno">
             Volver al inicio
           </EnlaceBoton>
-          {aprobada || (enRevision && conBoleta) ? (
+          {aprobada || enRevision ? (
             <EnlaceBoton href="/apadrina" variante="suave">
-              <Printer aria-hidden="true" className="size-4" />
               Conocer a quiénes apoyas
             </EnlaceBoton>
           ) : (

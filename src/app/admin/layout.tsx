@@ -41,6 +41,9 @@ export default async function LayoutAdmin({
 
   const modulos = modulosVisibles(usuario.permisos, contadores);
   const roles = usuario.roles.map(nombreDeRol).join(", ");
+  // La cuenta de administrador se llama "Administrador" a secas: no se repite
+  // el rol debajo del nombre cuando dicen lo mismo.
+  const detalle = roles === usuario.nombre ? undefined : roles;
 
   return (
     <div className="flex min-h-screen">
@@ -48,7 +51,7 @@ export default async function LayoutAdmin({
         Saltar al contenido principal
       </a>
 
-      <aside className="superficie-oscura franja-tinta sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto lg:block">
+      <aside className="superficie-oscura franja-tinta sticky top-0 hidden h-screen w-64 shrink-0 overflow-y-auto print:hidden lg:block">
         <div className="border-b border-crema/15 px-4 py-4">
           <Logo oscuro />
         </div>
@@ -60,10 +63,9 @@ export default async function LayoutAdmin({
             junto con la identidad y el cierre de sesión, pasa al menú flotante. */}
         <MenuFlotante
           titulo="Panel de administración"
-          subtitulo="CERNACE · Chimaltenango"
           inicio="/admin"
           modulos={modulos}
-          identidad={{ nombre: usuario.nombre, detalle: roles }}
+          identidad={{ nombre: usuario.nombre, detalle }}
           pie={
             <>
               <Link
@@ -78,13 +80,12 @@ export default async function LayoutAdmin({
           }
         />
 
-        <header className="sticky top-0 z-30 hidden border-b border-line bg-surface/85 backdrop-blur-md lg:block">
+        <header className="sticky top-0 z-30 hidden border-b border-line bg-surface/85 backdrop-blur-md print:hidden lg:block">
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div>
               <p className="text-sm font-semibold text-ink">
                 Panel de administración
               </p>
-              <p className="text-xs text-ink-soft">CERNACE · Chimaltenango</p>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <Link
@@ -96,7 +97,7 @@ export default async function LayoutAdmin({
               </Link>
               <div className="text-right">
                 <p className="text-sm font-semibold text-ink">{usuario.nombre}</p>
-                <p className="text-xs text-ink-soft">{roles}</p>
+                {detalle ? <p className="text-xs text-ink-soft">{detalle}</p> : null}
               </div>
               <CerrarSesion />
             </div>
@@ -106,7 +107,7 @@ export default async function LayoutAdmin({
         <main
           id="contenido"
           tabIndex={-1}
-          className="flex-1 px-4 py-6 sm:px-6 sm:py-8"
+          className="flex-1 px-4 py-6 print:p-0 sm:px-6 sm:py-8"
         >
           {children}
         </main>

@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import { ShieldAlert } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Tarjeta, TarjetaCabecera } from "@/components/ui";
 import { EncabezadoPagina } from "@/components/admin/estructura";
 import { formatFechaHora } from "@/lib/fechas";
-import { pasarela } from "@/lib/pasarela";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -15,7 +13,7 @@ export const dynamic = "force-dynamic";
 const TITULOS_GRUPO: Record<string, string> = {
   general: "Datos de la organización",
   contacto: "Contacto público",
-  donaciones: "Donaciones y pasarela",
+  donaciones: "Donaciones y cuentas bancarias",
 };
 
 export default async function ConfiguracionPage() {
@@ -33,21 +31,6 @@ export default async function ConfiguracionPage() {
         titulo="Configuración"
         descripcion="Valores que alimentan el sitio público y el comportamiento de la plataforma."
       />
-
-      <div className="mb-8 flex items-start gap-3 rounded-[var(--radius-sm)] bg-warn-bg p-5 text-warn-fg">
-        <ShieldAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
-        <div>
-          <p className="font-semibold">
-            Pasarela de pago: {pasarela.modoPrueba ? "modo prueba" : "producción"}
-          </p>
-          <p className="medida-lectura mt-1 text-sm">
-            Implementación activa: {pasarela.nombre}. Para pasar a Stripe o PayPal
-            basta con sustituir la implementación de la interfaz{" "}
-            <code className="font-mono">Pasarela</code> en{" "}
-            <code className="font-mono">src/lib/pasarela.ts</code>.
-          </p>
-        </div>
-      </div>
 
       <div className="space-y-6">
         {grupos.map((grupo) => (

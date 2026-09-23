@@ -148,21 +148,21 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
   {
     clave: PERMISOS.DONACIONES_LEER,
     nombre: "Leer donaciones",
-    descripcion: "Consultar donaciones, donantes y campañas.",
+    descripcion: "Consultar aportes, donantes, campañas, sus métricas y los reportes.",
     modulo: "Donaciones",
   },
   {
     clave: PERMISOS.DONACIONES_GESTIONAR,
-    nombre: "Verificar donaciones",
+    nombre: "Verificar aportes",
     descripcion:
-      "Cotejar la boleta de una transferencia o un depósito y dar la donación por buena o rechazarla.",
+      "Cotejar la foto del comprobante, anotar el monto, aprobar o rechazar con un mensaje, publicar el mensaje de amor a la familia, registrar aportes a mano y administrar campañas.",
     modulo: "Donaciones",
   },
   {
     clave: PERMISOS.PADRINAZGOS_GESTIONAR,
     nombre: "Asignar padrinazgos",
     descripcion:
-      "Asignar un beneficiario a un padrino y dar por terminada la asignación.",
+      "Asignar un beneficiario a un padrino, fijar su aporte de referencia y su caducidad, y dar por terminada la asignación. Solo la administración.",
     modulo: "Padrinos",
   },
   {
@@ -196,7 +196,7 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
   {
     clave: PERMISOS.CONTENIDO_GESTIONAR,
     nombre: "Gestionar contenido del sitio",
-    descripcion: "Administrar eventos, historias y entradas del blog.",
+    descripcion: "Administrar historias y entradas del blog.",
     modulo: "Contenido",
   },
   {
@@ -214,7 +214,8 @@ export const CATALOGO_PERMISOS: DefinicionPermiso[] = [
   {
     clave: PERMISOS.PORTAL_PADRINO,
     nombre: "Portal del padrino",
-    descripcion: "Acceder al portal y ver el progreso del beneficiado.",
+    descripcion:
+      "Acceder al portal, ver el progreso del beneficiado y aportar desde su ficha.",
     modulo: "Padrinos",
   },
   {
@@ -257,7 +258,7 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     clave: ROLES.DIRECCION,
     nombre: "Dirección",
     descripcion:
-      "Da seguimiento a beneficiarios, terapeutas y padrinos: expedientes, asignación de terapia, avances y solicitudes de apoyo. Entra directo a Beneficiarios: sin panel general, cuentas, configuración, recaudación, contenido del sitio ni auditoría.",
+      "Da seguimiento a beneficiarios y terapeutas: expedientes, asignación de terapia, avances y solicitudes de apoyo. Entra directo a Beneficiarios: sin panel general, cuentas, configuración, recaudación, padrinos, contenido del sitio ni auditoría.",
     permisos: [
       PERMISOS.EXPEDIENTE_LEER,
       PERMISOS.EXPEDIENTE_ESCRIBIR,
@@ -273,8 +274,6 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
       PERMISOS.TERAPIA_GESTIONAR,
       PERMISOS.TERAPEUTAS_LEER,
-      PERMISOS.PADRINAZGOS_GESTIONAR,
-      PERMISOS.PADRINOS_GESTIONAR,
       PERMISOS.GALERIA_PUBLICAR,
       PERMISOS.SOLICITUDES_ATENDER,
     ],
@@ -283,7 +282,7 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
     clave: ROLES.TRABAJO_SOCIAL,
     nombre: "Trabajo social",
     descripcion:
-      "Expediente completo. Edita la ficha socioeconómica y los avances.",
+      "Expediente completo. Edita la ficha socioeconómica y los avances. Sin recaudación ni padrinos: los montos y las asignaciones los ve solo la administración.",
     permisos: [
       PERMISOS.PANEL_VER,
       PERMISOS.EXPEDIENTE_LEER,
@@ -296,7 +295,6 @@ export const CATALOGO_ROLES: DefinicionRol[] = [
       PERMISOS.DOCUMENTOS_SUBIR,
       PERMISOS.SEGUIMIENTO_LEER,
       PERMISOS.SEGUIMIENTO_ESCRIBIR,
-      PERMISOS.PADRINAZGOS_GESTIONAR,
       PERMISOS.SOLICITUDES_ATENDER,
       PERMISOS.CONTACTO_ATENDER,
       PERMISOS.CONTENIDO_GESTIONAR,

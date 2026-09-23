@@ -84,7 +84,7 @@ export function MenuFlotante({
     <>
       {/* Reserva el sitio que ocupa la barra flotante: sin esto el primer
           titular de cada página nacería debajo de ella. */}
-      <div aria-hidden="true" className="hueco-flotante lg:hidden" />
+      <div aria-hidden="true" className="hueco-flotante print:hidden lg:hidden" />
 
       {abierto ? (
         <button
@@ -96,7 +96,7 @@ export function MenuFlotante({
         />
       ) : null}
 
-      <div className="capa-flotante fixed z-50 lg:hidden">
+      <div className="capa-flotante fixed z-50 print:hidden lg:hidden">
         <div
           className={cn(
             "flex items-center gap-3 border border-line bg-surface/92 px-3 py-2.5 shadow-alta backdrop-blur-md",

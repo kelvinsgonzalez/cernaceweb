@@ -105,13 +105,6 @@ export const MODULOS: Modulo[] = [
     grupo: "Entrantes",
   },
   {
-    href: "/admin/eventos",
-    etiqueta: "Eventos",
-    icono: "CalendarDays",
-    permiso: PERMISOS.CONTENIDO_GESTIONAR,
-    grupo: "Contenido",
-  },
-  {
     href: "/admin/historias",
     etiqueta: "Historias",
     icono: "Sparkles",
@@ -150,6 +143,13 @@ export const MODULOS: Modulo[] = [
     href: "/portal",
     etiqueta: "Mis apadrinados",
     icono: "HeartHandshake",
+    permiso: PERMISOS.PORTAL_PADRINO,
+    grupo: "Mi cuenta",
+  },
+  {
+    href: "/portal/aportes",
+    etiqueta: "Mis aportes",
+    icono: "HandCoins",
     permiso: PERMISOS.PORTAL_PADRINO,
     grupo: "Mi cuenta",
   },

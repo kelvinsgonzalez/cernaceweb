@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleCheck, Clock3, HandCoins, Receipt } from "lucide-react";
+import {
+  ChartLine,
+  CircleCheck,
+  Clock3,
+  HandCoins,
+  MessageCircleHeart,
+  PenLine,
+  Receipt,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requirePermiso } from "@/lib/sesion";
+import { requirePermiso, tienePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
-import { Boton, Chip, ChipDonacion, EnlaceBoton, Kpi, Tarjeta } from "@/components/ui";
+import {
+  Boton,
+  Chip,
+  ChipDonacion,
+  EnlaceBoton,
+  Kpi,
+  Tarjeta,
+  TarjetaCabecera,
+} from "@/components/ui";
 import {
   Celda,
   EncabezadoPagina,
@@ -17,8 +33,10 @@ import {
   formatMontoOpcional,
   formatQuetzales,
 } from "@/lib/fechas";
-import { etiquetaMetodo, requiereBoleta } from "@/lib/pasarela";
-import { aNumero } from "@/lib/utils";
+import { METODOS_PAGO, etiquetaMetodo } from "@/lib/pasarela";
+import { aNumero, primerNombre } from "@/lib/utils";
+import { FormularioAporteManual } from "./formulario";
+import { registrarAporteManual } from "./acciones";
 
 export const metadata: Metadata = { title: "Donaciones" };
 
@@ -27,17 +45,16 @@ export const dynamic = "force-dynamic";
 const COLUMNAS = [
   "Referencia",
   "Fecha",
-  "Donante",
+  "De quién",
   "Monto",
-  "Método",
   "Destino",
-  "Boleta",
+  "Comprobante",
   "Estado",
 ];
 
 const ESTADOS = ["COMPLETADA", "PENDIENTE", "FALLIDA", "REEMBOLSADA"] as const;
 
-/** Pendientes que ya traen boleta: la cola de trabajo del equipo. */
+/** Pendientes que ya traen foto: la cola de trabajo del equipo. */
 const POR_VERIFICAR = "POR_VERIFICAR";
 const FILTRO_POR_VERIFICAR = {
   estado: "PENDIENTE" as const,
@@ -49,7 +66,8 @@ export default async function DonacionesPage({
 }: {
   searchParams: Promise<{ estado?: string }>;
 }) {
-  await requirePermiso(PERMISOS.DONACIONES_LEER);
+  const usuario = await requirePermiso(PERMISOS.DONACIONES_LEER);
+  const gestiona = tienePermiso(usuario, PERMISOS.DONACIONES_GESTIONAR);
   const { estado } = await searchParams;
 
   const filtro =
@@ -59,53 +77,92 @@ export default async function DonacionesPage({
         ? { estado: estado as (typeof ESTADOS)[number] }
         : {};
 
-  const [donaciones, completadas, pendientes, porVerificar, recurrentes] =
+  const [donaciones, completadas, aprobadas, pendientes, porVerificar, compromisos, campanas] =
     await Promise.all([
       prisma.donacion.findMany({
         where: filtro,
         orderBy: { createdAt: "desc" },
-        include: { campaign: { select: { titulo: true } } },
+        include: {
+          campaign: { select: { titulo: true, general: true } },
+          beneficiario: { select: { id: true, codigoExpediente: true, nombres: true } },
+          padrino: { select: { id: true, nombre: true } },
+        },
       }),
       prisma.donacion.aggregate({
         where: { estado: "COMPLETADA" },
         _sum: { monto: true },
-        _count: true,
       }),
+      prisma.donacion.count({ where: { estado: "COMPLETADA" } }),
       prisma.donacion.count({ where: { estado: "PENDIENTE" } }),
       prisma.donacion.count({ where: FILTRO_POR_VERIFICAR }),
-      prisma.donacion.count({ where: { recurrente: true } }),
+      gestiona
+        ? prisma.padrinazgo.findMany({
+            where: { activo: true },
+            select: {
+              id: true,
+              padrino: { select: { nombre: true } },
+              beneficiario: { select: { codigoExpediente: true, nombres: true, apellidos: true } },
+            },
+            orderBy: { padrino: { nombre: "asc" } },
+          })
+        : [],
+      gestiona
+        ? prisma.campaign.findMany({
+            where: { activa: true, eliminadaEn: null },
+            select: { id: true, titulo: true, general: true },
+            orderBy: [{ general: "desc" }, { titulo: "asc" }],
+          })
+        : [],
     ]);
+
+  const destinos = [
+    ...compromisos.map((c) => ({
+      valor: `P:${c.id}`,
+      etiqueta: `${c.padrino.nombre} → ${c.beneficiario.nombres} ${c.beneficiario.apellidos} (${c.beneficiario.codigoExpediente})`,
+      grupo: "Apadrinamientos vigentes",
+    })),
+    ...campanas.map((c) => ({
+      valor: `C:${c.id}`,
+      etiqueta: c.titulo,
+      grupo: "Campañas",
+    })),
+  ];
 
   return (
     <>
       <EncabezadoPagina
         titulo="Donaciones"
-        descripcion="Los aportes con tarjeta los resuelve la pasarela. Los donativos depositados en el banco llegan sin identificar y con su boleta adjunta: hay que cotejarlos aquí y anotar de cuánto fueron."
+        descripcion="Todo aporte llega como una foto del comprobante: la de un padrino desde su portal, o la de cualquiera desde la portada. Aquí se coteja contra el estado de cuenta, se anota el monto y se aprueba o se rechaza con un mensaje."
+        acciones={
+          <EnlaceBoton href="/admin/donaciones/reportes" variante="contorno">
+            <ChartLine aria-hidden="true" className="size-4" />
+            Reportes
+          </EnlaceBoton>
+        }
       />
 
       <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           etiqueta="Total recaudado"
-          valor={formatQuetzales(aNumero(completadas._sum.monto ?? 0))}
-          detalle="Solo donaciones verificadas"
+          valor={formatQuetzales(aNumero(completadas._sum?.monto ?? 0))}
+          detalle="Solo aportes aprobados"
           icono={<HandCoins className="size-5" />}
         />
         <Kpi
-          etiqueta="Donaciones completadas"
-          valor={completadas._count}
-          detalle={`${recurrentes} ${recurrentes === 1 ? "aporte recurrente" : "aportes recurrentes"}`}
+          etiqueta="Aportes aprobados"
+          valor={aprobadas}
           icono={<CircleCheck className="size-5" />}
         />
         <Kpi
-          etiqueta="Boletas por verificar"
+          etiqueta="Por verificar"
           valor={porVerificar}
-          detalle="Esperando que alguien las coteje"
+          detalle="Con foto, esperando que alguien la coteje"
           icono={<Receipt className="size-5" />}
         />
         <Kpi
           etiqueta="Pendientes"
           valor={pendientes}
-          detalle={`${pendientes - porVerificar} sin boleta`}
+          detalle={`${pendientes - porVerificar} sin comprobante`}
           icono={<Clock3 className="size-5" />}
         />
       </div>
@@ -114,15 +171,32 @@ export default async function DonacionesPage({
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] bg-warn-bg p-5 text-warn-fg">
           <p className="font-medium">
             Hay {porVerificar}{" "}
-            {porVerificar === 1 ? "boleta" : "boletas"} esperando revisión.
+            {porVerificar === 1 ? "aporte" : "aportes"} esperando revisión.
           </p>
           <EnlaceBoton
             href={`/admin/donaciones?estado=${POR_VERIFICAR}`}
             variante="contorno"
           >
-            Revisarlas
+            Revisarlos
           </EnlaceBoton>
         </div>
+      ) : null}
+
+      {gestiona ? (
+        <Tarjeta className="mt-8">
+          <TarjetaCabecera
+            titulo="Registrar un aporte a mano"
+            descripcion="Para efectivo entregado en la oficina o un padrino que depositó y no subió la foto. Queda aprobado y fechado hoy."
+            icono={<PenLine className="size-5" />}
+          />
+          <div className="p-5">
+            <FormularioAporteManual
+              accion={registrarAporteManual}
+              destinos={destinos}
+              metodos={METODOS_PAGO.map((m) => ({ valor: m.valor, etiqueta: m.etiqueta }))}
+            />
+          </div>
+        </Tarjeta>
       ) : null}
 
       <Tarjeta className="mt-8 p-5">
@@ -138,7 +212,7 @@ export default async function DonacionesPage({
               className="rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink"
             >
               <option value="">Todos</option>
-              <option value={POR_VERIFICAR}>Con boleta por verificar</option>
+              <option value={POR_VERIFICAR}>Con comprobante por verificar</option>
               {ESTADOS.map((valor) => (
                 <option key={valor} value={valor}>
                   {valor.charAt(0) + valor.slice(1).toLowerCase()}
@@ -159,13 +233,13 @@ export default async function DonacionesPage({
 
       <div className="mt-6">
         <Tabla
-          caption="Donaciones registradas con su referencia, monto, método, boleta y estado"
+          caption="Aportes registrados con su referencia, origen, monto, destino, comprobante y estado"
           columnas={COLUMNAS}
         >
           {donaciones.length === 0 ? (
             <FilaVacia
               columnas={COLUMNAS.length}
-              mensaje="No hay donaciones con ese filtro."
+              mensaje="No hay aportes con ese filtro."
             />
           ) : (
             donaciones.map((donacion) => (
@@ -182,13 +256,14 @@ export default async function DonacionesPage({
                   {formatFechaHora(donacion.createdAt)}
                 </Celda>
                 <Celda>
-                  {/* Un donativo depositado en el banco llega sin identificar:
-                      quien deposita solo sube la boleta. */}
-                  {donacion.donanteNombre ? (
+                  {donacion.padrino ? (
                     <>
-                      <span className="font-medium">
-                        {donacion.donanteNombre}
-                      </span>
+                      <span className="font-medium">{donacion.padrino.nombre}</span>
+                      <span className="block text-xs text-ink-soft">Padrino</span>
+                    </>
+                  ) : donacion.donanteNombre ? (
+                    <>
+                      <span className="font-medium">{donacion.donanteNombre}</span>
                       {donacion.donanteEmail ? (
                         <span className="block text-xs text-ink-soft">
                           {donacion.donanteEmail}
@@ -198,24 +273,39 @@ export default async function DonacionesPage({
                   ) : (
                     <span className="text-ink-soft">Sin identificar</span>
                   )}
+                  {donacion.mensaje ? (
+                    <Chip
+                      tono={donacion.mensajeVisibleFamilia ? "ok" : "neutro"}
+                      className="mt-1"
+                      icono={<MessageCircleHeart aria-hidden="true" className="size-3.5" />}
+                    >
+                      {donacion.mensajeVisibleFamilia ? "Mensaje publicado" : "Con mensaje"}
+                    </Chip>
+                  ) : null}
                 </Celda>
                 <Celda className="whitespace-nowrap">
                   {formatMontoOpcional(donacion.monto)}
-                  {donacion.recurrente ? (
-                    <span className="block text-xs text-ink-soft">Mensual</span>
-                  ) : null}
+                  <span className="block text-xs text-ink-soft">
+                    {etiquetaMetodo(donacion.metodo)}
+                  </span>
                 </Celda>
-                <Celda>{etiquetaMetodo(donacion.metodo)}</Celda>
                 <Celda>
-                  {donacion.destinoNino ? (
+                  {donacion.beneficiario ? (
                     <>
-                      <span className="font-medium">{donacion.destinoNino}</span>
-                      <span className="block text-xs text-ink-soft">
-                        Niño indicado por el donante
+                      <Link
+                        href={`/admin/beneficiarios/${donacion.beneficiario.id}`}
+                        className="font-medium text-brand-dark hover:underline"
+                      >
+                        {primerNombre(donacion.beneficiario.nombres)}
+                      </Link>
+                      <span className="block font-mono text-xs text-ink-soft">
+                        {donacion.beneficiario.codigoExpediente}
                       </span>
                     </>
+                  ) : donacion.campaign ? (
+                    <span className="font-medium">{donacion.campaign.titulo}</span>
                   ) : (
-                    (donacion.campaign?.titulo ?? "Donde más se necesite")
+                    <span className="text-ink-soft">Sin destino</span>
                   )}
                 </Celda>
                 <Celda>
@@ -224,11 +314,10 @@ export default async function DonacionesPage({
                       href={`/admin/donaciones/${donacion.id}`}
                       className="font-semibold text-brand-dark hover:underline"
                     >
-                      Ver boleta
+                      Ver foto
                     </Link>
-                  ) : requiereBoleta(donacion.metodo) &&
-                    donacion.estado === "PENDIENTE" ? (
-                    <Chip tono="warn">Sin boleta</Chip>
+                  ) : donacion.estado === "PENDIENTE" ? (
+                    <Chip tono="warn">Sin foto</Chip>
                   ) : (
                     <span className="text-ink-soft">—</span>
                   )}

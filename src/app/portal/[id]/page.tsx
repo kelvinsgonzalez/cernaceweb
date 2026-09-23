@@ -1,13 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, FileText, HeartPulse, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  FileText,
+  HandCoins,
+  HeartHandshake,
+  HeartPulse,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
-import { Chip, Tarjeta, Vacio } from "@/components/ui";
+import { Chip, EnlaceBoton, Progreso, Tarjeta, Vacio } from "@/components/ui";
+import { AvisoCampanas } from "@/components/aviso-campanas";
 import { calcularEdad, formatFecha, formatQuetzales } from "@/lib/fechas";
 import { aNumero, formatTamano, listarTerapias, primerNombre } from "@/lib/utils";
+import { porcentaje, recordatorioPara, resumenCompromiso } from "@/lib/aportes";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +84,13 @@ export default async function ProgresoPage({
 
   const nino = padrinazgo.beneficiario;
   const nombre = primerNombre(nino.nombres);
+  const hoy = new Date();
+  const resumen = await resumenCompromiso(padrinazgo.id, hoy);
+  const referencia = aNumero(padrinazgo.aporteMensual);
+  const recordatorio = recordatorioPara(resumen.ultimoAporte, padrinazgo.fechaInicio, hoy);
+  // Con los avances suspendidos, el padrino sigue asignado pero solo ve el
+  // recordatorio y el botón de aportar hasta que el administrador reactive.
+  const suspendido = padrinazgo.avancesSuspendidos;
 
   await registrarAuditoria({
     actor: usuario.email,
@@ -91,6 +109,8 @@ export default async function ProgresoPage({
         <ArrowLeft aria-hidden="true" className="size-4" />
         Volver a mis apadrinados
       </Link>
+
+      <AvisoCampanas className="mt-6" />
 
       <Tarjeta className="mt-6 p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-5">
@@ -111,20 +131,12 @@ export default async function ProgresoPage({
           </div>
         </div>
 
-        <dl className="mt-7 grid gap-5 border-t border-line pt-6 sm:grid-cols-3">
+        <dl className="mt-7 grid gap-5 border-t border-line pt-6 sm:grid-cols-2">
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
               En CERNACE desde
             </dt>
             <dd className="mt-1 text-sm text-ink">{formatFecha(nino.fechaIngreso)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-              Tu aporte mensual
-            </dt>
-            <dd className="mt-1 text-sm text-ink">
-              {formatQuetzales(aNumero(padrinazgo.aporteMensual))}
-            </dd>
           </div>
           <div>
             <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
@@ -137,6 +149,91 @@ export default async function ProgresoPage({
         </dl>
       </Tarjeta>
 
+      {recordatorio ? (
+        <div
+          role="status"
+          className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-sm)] bg-brand-sky p-5 text-brand-dark"
+        >
+          <p className="flex items-start gap-3">
+            {recordatorio.nivel === "FUERTE" ? (
+              <HeartHandshake aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+            ) : (
+              <Sparkles aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+            )}
+            <span>
+              <span className="font-heading text-lg font-semibold">
+                «{recordatorio.texto}»
+              </span>
+              <span className="block text-sm">— {nombre}</span>
+            </span>
+          </p>
+          <EnlaceBoton href={`/portal/${nino.id}/aportar`}>Aportar</EnlaceBoton>
+        </div>
+      ) : null}
+
+      <Tarjeta className="mt-6 p-6 sm:p-8" aria-labelledby="tu-aporte-titulo">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 id="tu-aporte-titulo" className="flex items-center gap-2 font-heading text-xl font-semibold text-ink">
+              <HandCoins aria-hidden="true" className="size-5 text-brand-primary" />
+              Tu aporte
+            </h2>
+            <p className="medida-lectura mt-1 text-sm text-ink-soft">
+              Tu aporte es voluntario. La referencia es de {formatQuetzales(referencia)} al mes; esta barra
+              muestra cuánto va este mes para animarte a llegar.
+            </p>
+          </div>
+          <EnlaceBoton href={`/portal/${nino.id}/aportar`} className="px-5 py-2.5">
+            Aportar
+            <span className="visually-hidden"> para {nombre}</span>
+          </EnlaceBoton>
+        </div>
+        <div className="mt-5">
+          <Progreso valor={porcentaje(resumen.aportadoMes, referencia)} etiqueta="Este mes" />
+          <p className="mt-2 text-sm text-ink">
+            {formatQuetzales(resumen.aportadoMes)} de {formatQuetzales(referencia)} este mes
+            {resumen.pendientes > 0
+              ? ` · ${resumen.pendientes} ${resumen.pendientes === 1 ? "comprobante" : "comprobantes"} en revisión`
+              : ""}
+          </p>
+        </div>
+        <dl className="mt-5 grid gap-5 border-t border-line pt-5 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Aportado desde el inicio
+            </dt>
+            <dd className="mt-1 text-sm text-ink">{formatQuetzales(resumen.totalAportado)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              Último aporte
+            </dt>
+            <dd className="mt-1 text-sm text-ink">
+              {resumen.ultimoAporte ? formatFecha(resumen.ultimoAporte) : "Todavía ninguno"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              {padrinazgo.caducaEl ? "Compromiso hasta" : "Compromiso"}
+            </dt>
+            <dd className="mt-1 text-sm text-ink">
+              {padrinazgo.caducaEl ? formatFecha(padrinazgo.caducaEl) : "Sin fecha de fin"}
+            </dd>
+          </div>
+        </dl>
+      </Tarjeta>
+
+      {suspendido ? (
+        <Tarjeta className="mt-8 p-6">
+          <p className="medida-lectura text-sm text-ink">
+            Los avances de {nombre} no están disponibles por ahora. En cuanto el
+            equipo los reactive, volverás a verlos aquí.
+          </p>
+        </Tarjeta>
+      ) : null}
+
+      {suspendido ? null : (
+      <>
       <section aria-labelledby="avances-titulo" className="mt-8">
         <h2 id="avances-titulo" className="font-heading text-2xl font-semibold tracking-tight text-ink">
           Avances publicados
@@ -245,6 +342,9 @@ export default async function ProgresoPage({
           </Tarjeta>
         )}
       </section>
+
+      </>
+      )}
 
       <div className="mt-8 flex items-start gap-3 rounded-[var(--radius-sm)] bg-brand-sky p-5">
         <ShieldCheck

@@ -21,6 +21,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { porcentaje, resumenCompromiso } from "@/lib/aportes";
 import { registrarAuditoria, requirePermiso, tienePermiso } from "@/lib/sesion";
 import {
   actualizarDocumento,
@@ -152,7 +153,7 @@ export default async function ExpedientePage({
       },
       padrinazgos: {
         where: { activo: true },
-        include: { padrino: { select: { nombre: true, email: true } } },
+        include: { padrino: { select: { id: true, nombre: true, email: true } } },
       },
       citas: {
         where: { fecha: { gte: new Date() } },
@@ -260,6 +261,21 @@ export default async function ExpedientePage({
   const nombreCompleto = `${beneficiario.nombres} ${beneficiario.apellidos}`;
   const padrinazgo = beneficiario.padrinazgos[0];
   const proximaCita = beneficiario.citas[0];
+
+  // Lo financiero del compromiso (referencia, barra del mes, aportes y
+  // mensajes) lo ve solo quien lee donaciones: el resto ve el nombre.
+  const puedeVerAportes = tienePermiso(usuario, PERMISOS.DONACIONES_LEER);
+  const compromiso =
+    padrinazgo && puedeVerAportes ? await resumenCompromiso(padrinazgo.id) : null;
+  const mensajesPadrino =
+    padrinazgo && puedeVerAportes
+      ? await prisma.donacion.findMany({
+          where: { beneficiarioId: beneficiario.id, mensaje: { not: null }, estado: "COMPLETADA" },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, mensaje: true, mensajeVisibleFamilia: true, createdAt: true },
+        })
+      : [];
 
   await registrarAuditoria({
     actor: usuario.email,
@@ -1281,12 +1297,62 @@ export default async function ExpedientePage({
             </h2>
             {padrinazgo ? (
               <dl className="mt-3 space-y-3">
-                <Campo etiqueta="Nombre">{padrinazgo.padrino.nombre}</Campo>
-                <Campo etiqueta="Correo">{padrinazgo.padrino.email}</Campo>
-                <Campo etiqueta="Aporte mensual">
-                  {formatQuetzales(aNumero(padrinazgo.aporteMensual))}
+                <Campo etiqueta="Nombre">
+                  {puedeVerAportes ? (
+                    <Link
+                      href={`/admin/donantes/${padrinazgo.padrino.id}`}
+                      className="font-semibold text-brand-dark hover:underline"
+                    >
+                      {padrinazgo.padrino.nombre}
+                    </Link>
+                  ) : (
+                    padrinazgo.padrino.nombre
+                  )}
                 </Campo>
                 <Campo etiqueta="Desde">{formatFecha(padrinazgo.fechaInicio)}</Campo>
+                {padrinazgo.caducaEl ? (
+                  <Campo etiqueta="Compromiso hasta">{formatFecha(padrinazgo.caducaEl)}</Campo>
+                ) : null}
+                {compromiso ? (
+                  <>
+                    <Campo etiqueta="Aporte de referencia">
+                      {formatQuetzales(aNumero(padrinazgo.aporteMensual))} al mes
+                    </Campo>
+                    <div>
+                      <Progreso
+                        valor={porcentaje(compromiso.aportadoMes, aNumero(padrinazgo.aporteMensual))}
+                        etiqueta="Este mes"
+                      />
+                      <p className="mt-1 text-xs text-ink-soft">
+                        {formatQuetzales(compromiso.aportadoMes)} este mes · {formatQuetzales(compromiso.totalAportado)} en total
+                      </p>
+                    </div>
+                    <Campo etiqueta="Último aporte">
+                      {compromiso.ultimoAporte ? formatFecha(compromiso.ultimoAporte) : "Ninguno"}
+                      {compromiso.pendientes > 0 ? ` · ${compromiso.pendientes} por verificar` : ""}
+                    </Campo>
+                    {padrinazgo.avancesSuspendidos ? (
+                      <Chip tono="warn">Avances suspendidos para el padrino</Chip>
+                    ) : null}
+                    {mensajesPadrino.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                          Mensajes de amor
+                        </p>
+                        <ul className="mt-2 space-y-2">
+                          {mensajesPadrino.map((m) => (
+                            <li key={m.id} className="rounded-[var(--radius-sm)] bg-brand-sky p-3 text-xs text-brand-dark">
+                              «{m.mensaje}»
+                              <span className="mt-1 block text-ink-soft">
+                                {formatFecha(m.createdAt)} · {m.mensajeVisibleFamilia ? "publicado a la familia" : "sin publicar"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
               </dl>
             ) : (
               <p className="mt-2 text-sm text-ink-soft">

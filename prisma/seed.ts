@@ -36,10 +36,10 @@ async function limpiar() {
   await prisma.volunteerApplication.deleteMany();
   await prisma.supportRequest.deleteMany();
   await prisma.media.deleteMany();
-  await prisma.event.deleteMany();
   await prisma.post.deleteMany();
   await prisma.story.deleteMany();
   await prisma.donacion.deleteMany();
+  await prisma.campaignFoto.deleteMany();
   await prisma.campaign.deleteMany();
   await prisma.padrinazgo.deleteMany();
   await prisma.padrino.deleteMany();
@@ -97,9 +97,9 @@ async function sembrarAcceso() {
 
   const cuentas = [
     {
-      nombre: "Ana Lucía Set",
+      nombre: "Administrador",
       email: "admin@cernace.org",
-      cargo: "Administradora del sistema",
+      cargo: null,
       rol: "ADMIN",
       ultimoAcceso: t("2026-08-07T14:20:00-06:00"),
     },
@@ -832,7 +832,7 @@ async function sembrarTerapia(
   ids: Record<string, string>,
   usuarios: Record<string, string>,
 ) {
-  const APROBADOR = "Ana Lucía Set";
+  const APROBADOR = "Administrador";
 
   const planes = [
     {
@@ -1073,7 +1073,7 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         visibleParaPadrino: true,
         vigente: true,
         fechaVencimiento: null,
-        subidoPor: "Ana Lucía Set",
+        subidoPor: "Administrador",
       },
       {
         beneficiarioId,
@@ -1097,7 +1097,7 @@ async function sembrarExpedientePrincipal(beneficiarioId: string) {
         visibleParaPadrino: false,
         vigente: false,
         fechaVencimiento: f("2025-12-31"),
-        subidoPor: "Ana Lucía Set",
+        subidoPor: "Administrador",
       },
     ],
   });
@@ -1166,7 +1166,7 @@ async function sembrarComentarios(usuarios: Record<string, string>) {
     },
     {
       contiene: "40 metros",
-      autor: "Ana Lucía Set",
+      autor: "Administrador",
       rol: "ADMIN",
       texto:
         "Buen avance. Adjunté al expediente la carta de compromiso firmada por la familia, por si hace falta para el informe del trimestre.",
@@ -1341,7 +1341,7 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         descripcion:
           "Kevin identifica y lee en voz alta 20 palabras del material adaptado.",
         visibleParaPadrino: true,
-        registradoPor: "Ana Lucía Set",
+        registradoPor: "Administrador",
       },
       {
         beneficiarioId: ids["EXP-2025-0118"],
@@ -1424,7 +1424,7 @@ async function sembrarExpedientesSecundarios(ids: Record<string, string>) {
         beneficiarioId: ids["EXP-2024-0104"],
         fecha: t("2026-09-12T08:00:00-06:00"),
         tipo: "Refuerzo escolar",
-        profesional: "Ana Lucía Set",
+        profesional: "Administrador",
       },
     ],
   });
@@ -1507,16 +1507,38 @@ async function sembrarPadrinos(
   return creados;
 }
 
-async function sembrarDonacionesYCampanas(padrinos: Record<string, string>) {
+async function sembrarDonacionesYCampanas(
+  padrinos: Record<string, string>,
+  beneficiarios: Record<string, string>,
+) {
+  // La campaña general existe siempre y no se cierra: recibe lo que no va
+  // dirigido a un niño ni a una campaña concreta.
+  const general = await prisma.campaign.create({
+    data: {
+      titulo: "Aportar a lo que se necesite",
+      slug: "aportar-a-lo-que-se-necesite",
+      resumen:
+        "Tu aporte se usa donde más haga falta: terapias, material adaptado y transporte de las familias.",
+      descripcion:
+        "Los aportes que no van dirigidos a un niño ni a una campaña concreta sostienen el día a día del centro: sesiones de terapia, material adaptado, medicamentos e insumos, y el transporte de las familias hasta el centro.",
+      meta: "0.00",
+      fechaInicio: f("2026-01-01"),
+      fechaFin: null,
+      activa: true,
+      general: true,
+    },
+  });
+
   const navidad = await prisma.campaign.create({
     data: {
       titulo: "Navidad con terapias 2026",
       slug: "navidad-con-terapias-2026",
+      resumen:
+        "Tres meses de terapia para veinte beneficiarios que hoy no tienen padrino.",
       descripcion:
         "Cubrir tres meses de terapia para veinte beneficiarios que hoy no tienen padrino asignado.",
       meta: "75000.00",
-      recaudado: "28400.00",
-      fechaInicio: f("2026-10-01"),
+      fechaInicio: f("2026-09-01"),
       fechaFin: f("2026-12-24"),
       activa: true,
     },
@@ -1526,14 +1548,24 @@ async function sembrarDonacionesYCampanas(padrinos: Record<string, string>) {
     data: {
       titulo: "Transporte seguro para el área rural",
       slug: "transporte-seguro-area-rural",
+      resumen:
+        "Un microbús adaptado para recoger a las familias de las aldeas más lejanas.",
       descripcion:
-        "Un microbús adaptado para recoger a las familias de Comalapa, Patzún y Patzicía.",
+        "Un microbús adaptado para recoger a las familias de las aldeas de Cuilco que hoy caminan horas hasta el centro.",
       meta: "180000.00",
-      recaudado: "42750.00",
       fechaInicio: f("2026-03-01"),
       fechaFin: null,
       activa: true,
     },
+  });
+
+  // El aporte de Elena va a su ahijado: lleva el niño y el compromiso.
+  const compromisoElena = await prisma.padrinazgo.findFirst({
+    where: {
+      padrinoId: padrinos["padrino@cernace.org"],
+      beneficiarioId: beneficiarios["EXP-2024-0087"],
+    },
+    select: { id: true },
   });
 
   await prisma.donacion.createMany({
@@ -1542,49 +1574,69 @@ async function sembrarDonacionesYCampanas(padrinos: Record<string, string>) {
         donanteNombre: "Elena Ríos",
         donanteEmail: "padrino@cernace.org",
         padrinoId: padrinos["padrino@cernace.org"],
+        beneficiarioId: beneficiarios["EXP-2024-0087"],
+        padrinazgoId: compromisoElena?.id ?? null,
+        tipo: "APADRINAMIENTO",
         campaignId: null,
-        monto: "700.00",
-        metodo: "TARJETA",
+        monto: "350.00",
+        metodo: "DEPOSITO",
         estado: "COMPLETADA",
         referenciaPasarela: "CER-SIM-7HK2PA",
-        recurrente: true,
-        mensaje: "Aporte mensual de agosto.",
+        recurrente: false,
+        mensaje:
+          "Diego, cada paso que das me llena de orgullo. Sigue adelante, campeón.",
+        mensajeVisibleFamilia: true,
+        verificadaPor: "Administrador",
+        verificadaEn: t("2026-09-03T10:15:00-06:00"),
+        createdAt: t("2026-09-02T18:30:00-06:00"),
       },
       {
         donanteNombre: "Carlos Menéndez",
         donanteEmail: "carlos.menendez@example.com",
         padrinoId: padrinos["carlos.menendez@example.com"],
         campaignId: navidad.id,
+        tipo: "CAMPANA",
         monto: "1500.00",
         metodo: "TRANSFERENCIA",
         estado: "COMPLETADA",
         referenciaPasarela: "CER-SIM-3QM9XD",
         recurrente: false,
-        mensaje: null,
+        mensaje: "Para que ningún niño se quede sin terapia en diciembre.",
+        verificadaPor: "Administrador",
+        verificadaEn: t("2026-09-10T09:00:00-06:00"),
+        createdAt: t("2026-09-09T12:00:00-06:00"),
       },
       {
         donanteNombre: "Anónimo",
-        donanteEmail: "anonimo@example.com",
+        donanteEmail: null,
         padrinoId: null,
         campaignId: transporte.id,
-        monto: "250.00",
+        tipo: "CAMPANA",
+        monto: null,
         metodo: "DEPOSITO",
         estado: "PENDIENTE",
         referenciaPasarela: "CER-SIM-5TB4LR",
         recurrente: false,
-        mensaje: "Depósito pendiente de confirmar.",
+        mensaje: null,
+        createdAt: t("2026-09-18T08:45:00-06:00"),
       },
       {
         donanteNombre: "Sandra Pichiyá",
         donanteEmail: "sandra.pichiya@example.com",
         padrinoId: null,
-        campaignId: null,
+        campaignId: general.id,
+        tipo: "GENERAL",
         monto: "400.00",
-        metodo: "TARJETA",
+        metodo: "DEPOSITO",
         estado: "FALLIDA",
         referenciaPasarela: "CER-SIM-9WD6ZC",
         recurrente: false,
         mensaje: null,
+        verificadaPor: "Administrador",
+        verificadaEn: t("2026-09-12T16:00:00-06:00"),
+        notaVerificacion:
+          "El depósito no aparece en el estado de cuenta. Revisa la boleta y vuelve a subirla.",
+        createdAt: t("2026-09-11T20:10:00-06:00"),
       },
     ],
   });
@@ -1665,37 +1717,10 @@ async function sembrarContenido() {
           "Desglose honesto de a dónde va cada quetzal del aporte mensual.",
         contenido:
           "De un aporte de Q350 al mes, Q210 cubren sesiones de terapia, Q70 material adaptado, Q45 transporte de la familia y Q25 gastos administrativos. Publicamos el desglose cada trimestre.",
-        autor: "Ana Lucía Set",
+        autor: "Administrador",
         categoria: "Transparencia",
         estado: "PUBLICADO",
         publicadoEn: t("2026-06-25T09:00:00-06:00"),
-      },
-    ],
-  });
-
-  await prisma.event.createMany({
-    data: [
-      {
-        titulo: "Jornada de evaluación gratuita",
-        slug: "jornada-evaluacion-gratuita",
-        descripcion:
-          "Valoración inicial sin costo para familias de Chimaltenango. Cupo limitado, inscripción previa.",
-        lugar: "Sede CERNACE, 4a calle 6-21 zona 2, Chimaltenango",
-        inicia: t("2026-09-05T08:00:00-06:00"),
-        termina: t("2026-09-05T16:00:00-06:00"),
-        cupo: 40,
-        estado: "PUBLICADO",
-      },
-      {
-        titulo: "Taller para encargados: manejo de crisis sensoriales",
-        slug: "taller-crisis-sensoriales",
-        descripcion:
-          "Sesión práctica para madres, padres y cuidadores. Incluye refacción y material impreso.",
-        lugar: "Salón parroquial, Tecpán Guatemala",
-        inicia: t("2026-10-18T14:00:00-06:00"),
-        termina: t("2026-10-18T17:00:00-06:00"),
-        cupo: 25,
-        estado: "PUBLICADO",
       },
     ],
   });
@@ -1708,7 +1733,7 @@ async function sembrarContenido() {
         tipoMime: "image/jpeg",
         tamanoBytes: 890000,
         alt: "Niños trabajando con andadores en el patio del centro",
-        subidoPor: "Ana Lucía Set",
+        subidoPor: "Administrador",
       },
       {
         nombre: "Aula de educación especial",
@@ -1716,7 +1741,7 @@ async function sembrarContenido() {
         tipoMime: "image/jpeg",
         tamanoBytes: 760000,
         alt: "Aula con mesas bajas y material didáctico adaptado",
-        subidoPor: "Ana Lucía Set",
+        subidoPor: "Administrador",
       },
     ],
   });
@@ -1904,12 +1929,6 @@ async function sembrarConfiguracion() {
         descripcion: "A nombre de quién está la cuenta en dólares.",
         grupo: "donaciones",
       },
-      {
-        clave: "pasarela.modo",
-        valor: "PRUEBA",
-        descripcion: "Modo de la pasarela de pago. En producción debe ser PRODUCCION.",
-        grupo: "donaciones",
-      },
     ],
   });
 }
@@ -2035,11 +2054,11 @@ async function main() {
   const padrinos = await sembrarPadrinos(beneficiarios, usuarios);
   console.log("· 5 padrinos (3 beneficiarios quedan sin padrino)");
 
-  await sembrarDonacionesYCampanas(padrinos);
-  console.log("· 2 campañas y 4 donaciones");
+  await sembrarDonacionesYCampanas(padrinos, beneficiarios);
+  console.log("· 3 campañas (una general) y 4 aportes");
 
   await sembrarContenido();
-  console.log("· 3 historias, 2 entradas de blog, 2 eventos, 2 medios");
+  console.log("· 3 historias, 2 entradas de blog, 2 medios");
 
   await sembrarFormularios();
   console.log("· 2 solicitudes, 2 postulaciones, 2 mensajes");

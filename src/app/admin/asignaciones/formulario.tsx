@@ -90,24 +90,12 @@ export function FormularioAsignacion({
           type="number"
           min={50}
           step={25}
-          etiqueta="Aporte (quetzales)"
+          etiqueta="Aporte mensual de referencia (Q)"
+          ayuda="No es una cuota: solo alimenta la barra de ánimo del niño."
           requerido
           defaultValue={aporteSugerido}
           error={e.aporteMensual}
         />
-        <CampoSelect
-          id="modalidad"
-          name="modalidad"
-          etiqueta="Modalidad"
-          requerido
-          error={e.modalidad}
-          defaultValue="MENSUAL"
-        >
-          <option value="MENSUAL">Mensual</option>
-          <option value="TRIMESTRAL">Trimestral</option>
-          <option value="ANUAL">Anual</option>
-          <option value="UNICO">Aporte único</option>
-        </CampoSelect>
         <CampoTexto
           id="fechaInicio"
           name="fechaInicio"
@@ -116,6 +104,14 @@ export function FormularioAsignacion({
           requerido
           defaultValue={hoy}
           error={e.fechaInicio}
+        />
+        <CampoTexto
+          id="caducaEl"
+          name="caducaEl"
+          type="date"
+          etiqueta="Caduca el (opcional)"
+          ayuda="Al llegar, aparece aquí para que decidas; nada pasa solo."
+          error={e.caducaEl}
         />
       </div>
 

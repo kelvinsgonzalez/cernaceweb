@@ -78,28 +78,36 @@ export const esquemaContacto = z.object({
 });
 
 /**
- * Pago en línea: lo único que se le pide al donante es cuánto quiere aportar.
- * Ni nombre ni correo: los datos de la tarjeta y del titular los resuelve la
- * pasarela, y aquí no se guarda ninguno.
+ * Aporte a una campaña desde la portada. Lo único obligatorio es la foto del
+ * comprobante, que no pasa por Zod —se valida aparte con `validarBoleta`—.
+ * El nombre y el mensaje son opcionales. El monto lo anota el administrador
+ * al aprobar, porque está en la imagen que se sube.
  */
-export const esquemaPasarela = z.object({
-  monto: z
+export const esquemaAporteCampana = z.object({
+  campana: z.string().trim().max(120).optional(),
+  deParteDe: z
     .string()
     .trim()
-    .refine((v) => Number(v) >= 25, { message: "El monto mínimo es de Q25." }),
+    .max(80, "El nombre no puede pasar de 80 caracteres.")
+    .optional(),
+  mensaje: z
+    .string()
+    .trim()
+    .max(500, "El mensaje no puede pasar de 500 caracteres.")
+    .optional(),
 });
 
 /**
- * Donativo depositado en el banco. Es el camino más corto que hay: la boleta y,
- * si el donante quiere, a qué niño va dirigida. El archivo no pasa por Zod —se
- * valida aparte con `validarBoleta`—. El monto y los datos de la boleta los
- * anota el equipo al cotejarla, porque están en la imagen que se sube.
+ * Aporte de un padrino a su ahijado desde el portal: la foto del comprobante
+ * y, si quiere, un mensaje de amor. Nada más; el niño y el padrino los pone
+ * el servidor.
  */
-export const esquemaDonativoDirecto = z.object({
-  destinoNino: z
+export const esquemaAportePadrino = z.object({
+  beneficiarioId: z.string().min(1),
+  mensaje: z
     .string()
     .trim()
-    .max(120, "El código o el nombre no puede pasar de 120 caracteres.")
+    .max(500, "El mensaje no puede pasar de 500 caracteres.")
     .optional(),
 });
 

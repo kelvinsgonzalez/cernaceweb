@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { CalendarDays, FileText, HeartPulse, ShieldCheck, Target } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  HeartPulse,
+  MessageCircleHeart,
+  ShieldCheck,
+  Target,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { registrarAuditoria, requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
 import { Chip, Tarjeta, Vacio } from "@/components/ui";
+import { AvisoCampanas } from "@/components/aviso-campanas";
 import { FotoBeneficiario } from "@/components/foto-beneficiario";
 import { calcularEdad, formatFecha, formatFechaHora } from "@/lib/fechas";
 import { formatTamano, listarTerapias, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
@@ -85,6 +93,25 @@ export default async function MiExpedientePage() {
   const nombre = primerNombre(beneficiario.nombres);
   const proximaCita = beneficiario.citas[0];
 
+  // Las palabras del padrino: solo las de aportes aprobados que el
+  // administrador decidió publicar. Nunca el monto.
+  const mensajes = await prisma.donacion.findMany({
+    where: {
+      beneficiarioId: beneficiario.id,
+      estado: "COMPLETADA",
+      mensajeVisibleFamilia: true,
+      mensaje: { not: null },
+    },
+    orderBy: { verificadaEn: "desc" },
+    select: {
+      id: true,
+      mensaje: true,
+      verificadaEn: true,
+      createdAt: true,
+      padrino: { select: { nombre: true } },
+    },
+  });
+
   await registrarAuditoria({
     actor: usuario.email,
     accion: "VER_EXPEDIENTE_PROPIO",
@@ -95,6 +122,8 @@ export default async function MiExpedientePage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
+      <AvisoCampanas className="mb-6" />
+
       <Tarjeta className="p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-5">
           <FotoBeneficiario
@@ -159,6 +188,36 @@ export default async function MiExpedientePage() {
             {beneficiario.plan.objetivoGeneral}
           </p>
         </Tarjeta>
+      ) : null}
+
+      {mensajes.length > 0 ? (
+        <section aria-labelledby="mensajes-titulo" className="mt-10">
+          <h2
+            id="mensajes-titulo"
+            className="flex items-center gap-2 font-heading text-2xl font-semibold tracking-tight text-ink"
+          >
+            <MessageCircleHeart aria-hidden="true" className="size-6 text-brand-primary" />
+            Mensajes de tu padrino
+          </h2>
+          <p className="medida-lectura mt-2 text-sm text-ink-soft">
+            Palabras que {nombre} recibe de quien lo apadrina, con cada aporte.
+          </p>
+          <ol className="mt-5 space-y-4">
+            {mensajes.map((m) => (
+              <li key={m.id}>
+                <Tarjeta className="bg-brand-sky p-6">
+                  <blockquote className="medida-lectura font-heading text-lg text-brand-dark">
+                    «{m.mensaje}»
+                  </blockquote>
+                  <p className="mt-3 text-sm text-ink-soft">
+                    — {m.padrino?.nombre ?? "Tu padrino"} ·{" "}
+                    {formatFecha(m.verificadaEn ?? m.createdAt)}
+                  </p>
+                </Tarjeta>
+              </li>
+            ))}
+          </ol>
+        </section>
       ) : null}
 
       <section aria-labelledby="avances-titulo" className="mt-10">

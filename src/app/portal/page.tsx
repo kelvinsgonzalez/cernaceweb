@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, HeartHandshake, HeartPulse } from "lucide-react";
+import { ArrowRight, HandCoins, HeartHandshake, HeartPulse, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePermiso } from "@/lib/sesion";
 import { PERMISOS } from "@/lib/rbac";
-import { Chip, Tarjeta, Vacio } from "@/components/ui";
-import { calcularEdad, formatFecha, formatQuetzales } from "@/lib/fechas";
-import { aNumero, listarTerapias, primerNombre } from "@/lib/utils";
+import { Chip, EnlaceBoton, Tarjeta, Vacio } from "@/components/ui";
+import { AvisoCampanas } from "@/components/aviso-campanas";
+import { calcularEdad, formatFecha } from "@/lib/fechas";
+import { listarTerapias, primerNombre } from "@/lib/utils";
+import { recordatorioPara, resumenesCompromisos } from "@/lib/aportes";
 
 export const metadata: Metadata = {
   title: "Mis apadrinados",
@@ -16,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PortalPage() {
   const usuario = await requirePermiso(PERMISOS.PORTAL_PADRINO);
+  const hoy = new Date();
 
   // La consulta parte del padrino de la sesión: nunca de un id de la URL.
   const padrinazgos = usuario.padrinoId
@@ -38,13 +41,20 @@ export default async function PortalPage() {
       })
     : [];
 
-  const aporteTotal = padrinazgos.reduce(
-    (suma, p) => suma + aNumero(p.aporteMensual),
-    0,
-  );
+  const resumenes = await resumenesCompromisos(padrinazgos.map((p) => p.id), hoy);
+  const tarjetas = padrinazgos.map((p) => {
+    const resumen = resumenes.get(p.id);
+    return {
+      ...p,
+      recordatorio: recordatorioPara(resumen?.ultimoAporte ?? null, p.fechaInicio, hoy),
+      ultimoAporte: resumen?.ultimoAporte ?? null,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
+      <AvisoCampanas className="mb-6" />
+
       <h1 className="font-heading text-3xl font-semibold tracking-tight text-ink">
         Hola, {usuario.nombre.split(" ")[0]}
       </h1>
@@ -52,20 +62,21 @@ export default async function PortalPage() {
         Aquí puedes seguir el progreso de{" "}
         {padrinazgos.length === 1
           ? "la persona que apadrinas"
-          : "las personas que apadrinas"}
-        . Los avances los publica el personal de CERNACE.
+          : "las personas que apadrinas"}{" "}
+        y aportar desde su ficha. Los avances los publica el personal de CERNACE.
       </p>
 
       {padrinazgos.length > 0 ? (
-        <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
           <Chip tono="info">
             {padrinazgos.length}{" "}
             {padrinazgos.length === 1 ? "apadrinamiento" : "apadrinamientos"}{" "}
             activo{padrinazgos.length === 1 ? "" : "s"}
           </Chip>
-          <Chip tono="ok" icono={<HeartHandshake aria-hidden="true" className="size-4" />}>
-            Aporte mensual: {formatQuetzales(aporteTotal)}
-          </Chip>
+          <EnlaceBoton href="/portal/aportes" variante="contorno" className="px-3 py-1.5 text-xs">
+            <HandCoins aria-hidden="true" className="size-4" />
+            Mis aportes
+          </EnlaceBoton>
         </div>
       ) : null}
 
@@ -75,7 +86,7 @@ export default async function PortalPage() {
         </Tarjeta>
       ) : (
         <ul className="mt-8 grid gap-5 sm:grid-cols-2">
-          {padrinazgos.map((padrinazgo) => {
+          {tarjetas.map((padrinazgo) => {
             const nino = padrinazgo.beneficiario;
             const nombre = primerNombre(nino.nombres);
             return (
@@ -99,21 +110,42 @@ export default async function PortalPage() {
                     </div>
                   </div>
 
+                  {padrinazgo.recordatorio ? (
+                    <div
+                      role="status"
+                      className="mt-5 flex items-start gap-3 rounded-[var(--radius-sm)] bg-brand-sky p-4 text-sm text-brand-dark"
+                    >
+                      {padrinazgo.recordatorio.nivel === "FUERTE" ? (
+                        <HeartHandshake aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                      ) : (
+                        <Sparkles aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                      )}
+                      <span>
+                        <span className="font-semibold">
+                          «{padrinazgo.recordatorio.texto}»
+                        </span>
+                        <span className="block text-xs">— {nombre}</span>
+                      </span>
+                    </div>
+                  ) : null}
+
                   <dl className="mt-5 grid flex-1 grid-cols-2 gap-4 text-sm">
                     <div>
                       <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                        Aporte mensual
+                        Apadrinas desde
                       </dt>
                       <dd className="mt-1 text-ink">
-                        {formatQuetzales(aNumero(padrinazgo.aporteMensual))}
+                        {formatFecha(padrinazgo.fechaInicio)}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                        Desde
+                        Tu último aporte
                       </dt>
                       <dd className="mt-1 text-ink">
-                        {formatFecha(padrinazgo.fechaInicio)}
+                        {padrinazgo.ultimoAporte
+                          ? formatFecha(padrinazgo.ultimoAporte)
+                          : "Todavía ninguno"}
                       </dd>
                     </div>
                     <div className="col-span-2">
@@ -121,19 +153,25 @@ export default async function PortalPage() {
                         Avances publicados
                       </dt>
                       <dd className="mt-1 text-ink">
-                        {nino._count.seguimientos}
+                        {padrinazgo.avancesSuspendidos ? "—" : nino._count.seguimientos}
                       </dd>
                     </div>
                   </dl>
 
-                  <Link
-                    href={`/portal/${nino.id}`}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-dark hover:underline"
-                  >
-                    Ver progreso
-                    <span className="visually-hidden">de {nombre}</span>
-                    <ArrowRight aria-hidden="true" className="size-4" />
-                  </Link>
+                  <div className="mt-5 flex flex-wrap items-center gap-4">
+                    <EnlaceBoton href={`/portal/${nino.id}/aportar`} className="px-4 py-2 text-sm">
+                      Aportar
+                      <span className="visually-hidden"> para {nombre}</span>
+                    </EnlaceBoton>
+                    <Link
+                      href={`/portal/${nino.id}`}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-brand-dark hover:underline"
+                    >
+                      Ver progreso
+                      <span className="visually-hidden">de {nombre}</span>
+                      <ArrowRight aria-hidden="true" className="size-4" />
+                    </Link>
+                  </div>
                 </Tarjeta>
               </li>
             );

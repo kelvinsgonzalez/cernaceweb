@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, HeartPulse } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { Tarjeta, Vacio } from "@/components/ui";
-import { PortadaBeneficiario } from "@/components/foto-beneficiario";
+import { EnlaceBoton } from "@/components/ui";
+import {
+  FILTRO_ESPERAN_PADRINO,
+  GaleriaBeneficiarios,
+  beneficiariosQueEsperan,
+} from "@/components/galeria-beneficiarios";
 import { SeccionComoAyudar } from "@/components/como-ayudar";
-import { calcularEdad } from "@/lib/fechas";
-import { listarTerapias, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
+import { CarruselHistorias } from "@/components/carrusel-historias";
 
 export const metadata: Metadata = {
   title: "Apadrina a un niño",
@@ -14,26 +15,22 @@ export const metadata: Metadata = {
     "Beneficiarios de CERNACE que todavía no tienen un padrino asignado.",
 };
 
+export const dynamic = "force-dynamic";
+
+/** Cuántos se enseñan en esta página; el resto está en /apadrina/todos. */
+const DESTACADOS = 3;
+
 export default async function GaleriaPage() {
-  const ninos = await prisma.beneficiario.findMany({
-    where: {
-      estado: "ACTIVO",
-      publicadoEnGaleria: true,
-      // Las dos condiciones: la familia lo pidió y la administración lo autorizó.
-      solicitaPatrocinio: true,
-      padrinazgos: { none: { activo: true } },
-    },
-    // Ni apellidos, ni diagnóstico, ni datos de la familia salen de la consulta.
-    select: {
-      id: true,
-      nombres: true,
-      fechaNacimiento: true,
-      resumenPublico: true,
-      fotoArchivo: true,
-      terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
-    },
-    orderBy: { fechaIngreso: "asc" },
-  });
+  const [sinPadrino, publicados, ninos] = await Promise.all([
+    // Todos los activos sin padrino, publicados o no: es el tamaño real de la
+    // necesidad, no solo la parte que se enseña en la galería.
+    prisma.beneficiario.count({
+      where: { estado: "ACTIVO", padrinazgos: { none: { activo: true } } },
+    }),
+    prisma.beneficiario.count({ where: FILTRO_ESPERAN_PADRINO }),
+    // Los tres que llevan más tiempo esperando.
+    beneficiariosQueEsperan(DESTACADOS),
+  ]);
 
   return (
     <>
@@ -47,58 +44,71 @@ export default async function GaleriaPage() {
 
       <SeccionComoAyudar />
 
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-sm text-ink-soft" role="status">
-          {ninos.length}{" "}
-          {ninos.length === 1
-            ? "beneficiario esperando padrino"
-            : "beneficiarios esperando padrino"}
-        </p>
+      {/* Las historias de éxito: lo que el apadrinamiento hace posible. */}
+      <CarruselHistorias className="mx-auto max-w-6xl px-4 py-12 sm:py-16" />
 
-        {ninos.length === 0 ? (
-          <Tarjeta className="mt-4">
-            <Vacio mensaje="Ahora mismo todos los beneficiarios publicados tienen padrino asignado." />
-          </Tarjeta>
-        ) : (
-          <ul className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {ninos.map((nino) => {
-              const nombre = primerNombre(nino.nombres);
-              return (
-                <li key={nino.id} className="revela">
-                  <Tarjeta className="tarjeta-viva flex h-full flex-col p-6">
-                    <PortadaBeneficiario
-                      nombre={nombre}
-                      fotoUrl={urlFotoBeneficiario(nino.id, nino.fotoArchivo)}
-                    />
-                    <h2 className="mt-4 font-heading text-lg font-semibold text-ink">
-                      {nombre}, {calcularEdad(nino.fechaNacimiento)} años
-                    </h2>
-                    <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-brand-primary">
-                      <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
-                      {listarTerapias(nino.terapias)}
-                    </p>
-                    {nino.resumenPublico ? (
-                      <p className="medida-lectura mt-3 flex-1 text-sm text-ink-soft">
-                        {nino.resumenPublico}
-                      </p>
-                    ) : (
-                      <p className="mt-3 flex-1" />
-                    )}
-                    <Link
-                      href={`/apadrina/${nino.id}`}
-                      className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand-dark hover:underline"
-                    >
-                      Ver perfil
-                      <span className="visually-hidden">de {nombre}</span>
-                      <ArrowRight aria-hidden="true" className="size-4" />
-                    </Link>
-                  </Tarjeta>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+      {/* La llamada: cuántos esperan y los dos caminos para ayudar. */}
+      <section
+        className="superficie-oscura franja-cierre"
+        aria-labelledby="cta-titulo"
+      >
+        <div className="mx-auto max-w-3xl px-4 py-14 text-center sm:py-20">
+          <h2
+            id="cta-titulo"
+            className="font-heading text-3xl font-semibold text-crema sm:text-4xl"
+          >
+            Hay {sinPadrino} {sinPadrino === 1 ? "niño" : "niños"} sin padrino
+            asignado
+          </h2>
+          <p className="medida-lectura mx-auto mt-4 text-lg text-crema/80">
+            El aporte mensual cubre sus terapias, su material adaptado y el
+            transporte de su familia.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <EnlaceBoton
+              href="/inscripcion/padrino"
+              className="bg-brand-yellow px-6 py-3 text-base text-brand-dark hover:bg-crema"
+            >
+              Ser padrino
+            </EnlaceBoton>
+            <EnlaceBoton
+              href="/donar"
+              variante="contorno"
+              className="border-crema/45 bg-transparent px-6 py-3 text-base text-crema hover:border-crema hover:bg-crema/10"
+            >
+              Hacer una donación
+            </EnlaceBoton>
+          </div>
+        </div>
+      </section>
+
+      {/* Los tres que llevan más tiempo esperando; el listado completo tiene
+          su propia página. */}
+      <section
+        className="mx-auto max-w-6xl px-4 py-10 sm:py-14"
+        aria-labelledby="esperan-titulo"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2
+              id="esperan-titulo"
+              className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
+            >
+              Beneficiarios que esperan padrino
+            </h2>
+            <p className="medida-lectura mt-3 text-ink-soft">
+              Publicamos únicamente su primer nombre, su edad y las terapias que
+              recibe. El resto del expediente es confidencial.
+            </p>
+          </div>
+          <EnlaceBoton href="/apadrina/todos" variante="contorno">
+            Ver a todos
+            {publicados > 0 ? ` (${publicados})` : ""}
+          </EnlaceBoton>
+        </div>
+
+        <GaleriaBeneficiarios ninos={ninos} className="mt-8" />
+      </section>
     </>
   );
 }

@@ -17,6 +17,7 @@ const CARPETA_DOCUMENTOS = "documentos";
 const CARPETA_EVIDENCIAS = "evidencias";
 const CARPETA_BOLETAS = "boletas";
 const CARPETA_HISTORIAS = "historias";
+const CARPETA_CAMPANAS = "campanas";
 
 /**
  * Se resuelve en cada llamada para que un cambio de ALMACENAMIENTO_DIR surta
@@ -167,6 +168,12 @@ export function guardarImagenHistoria(archivo: File): Promise<ArchivoGuardado> {
   return guardar(archivo, CARPETA_HISTORIAS);
 }
 
+/** Foto de una campaña. Pública como la de una historia, y guardada fuera de
+ *  public/ por la misma razón: la sube el equipo desde el panel. */
+export function guardarFotoCampana(archivo: File): Promise<ArchivoGuardado> {
+  return guardar(archivo, CARPETA_CAMPANAS);
+}
+
 /** Comprobante de una transferencia o un depósito. Lleva datos bancarios del
  *  donante, así que tampoco vive en public/: se sirve por /api/boletas/[id]. */
 export function guardarBoleta(archivo: File): Promise<ArchivoGuardado> {
@@ -272,6 +279,14 @@ export function leerImagenHistoria(nombre: string) {
 
 export function borrarImagenHistoria(nombre: string) {
   return borrar(nombre, CARPETA_HISTORIAS);
+}
+
+export function leerFotoCampana(nombre: string) {
+  return leer(nombre, CARPETA_CAMPANAS);
+}
+
+export function borrarFotoCampana(nombre: string) {
+  return borrar(nombre, CARPETA_CAMPANAS);
 }
 
 export function leerBoleta(nombre: string) {

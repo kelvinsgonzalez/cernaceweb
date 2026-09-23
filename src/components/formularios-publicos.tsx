@@ -352,121 +352,146 @@ export function FormularioContacto({ accion }: { accion: Accion }) {
 }
 
 /* -------------------------------------------------------------------------
-   Pago en línea
+   Aportes: la foto del comprobante
    ------------------------------------------------------------------------- */
 
 /**
- * Lo único que se pregunta es cuánto. Nombre, correo y datos de la tarjeta son
- * asunto de la pasarela, y este sitio no los guarda.
+ * El campo de la foto del comprobante, compartido por el aporte a campaña
+ * desde la portada y el aporte del padrino desde el portal. El archivo no
+ * pasa por Zod: se valida en el servidor con `validarBoleta`.
  */
-export function FormularioPasarela({
-  accion,
-  montoSugerido,
+export function CampoBoleta({
+  error,
+  tamanoMaximoMb,
 }: {
-  accion: Accion;
-  montoSugerido: string;
+  error?: string;
+  tamanoMaximoMb: number;
 }) {
-  const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
-  const e = estado.errores ?? {};
-
   return (
-    <form action={enviar} className="flex flex-col gap-5" noValidate>
-      <Mensajes estado={estado} />
-
-      <CampoTexto
-        id="monto"
-        name="monto"
-        type="number"
-        min={25}
-        step={25}
-        etiqueta="¿Cuánto quieres aportar?"
-        ayuda="En quetzales. El mínimo es de Q25."
-        requerido
-        defaultValue={montoSugerido}
-        error={e.monto}
-        className="max-w-xs"
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="boleta" className="text-sm font-semibold text-ink">
+        Foto del comprobante
+        <span className="ml-1 text-danger" aria-hidden="true">
+          *
+        </span>
+        <span className="visually-hidden">(obligatorio)</span>
+      </label>
+      <p id="boleta-ayuda" className="medida-lectura text-xs text-ink-soft">
+        La boleta del depósito, la captura de la transferencia o el recibo del
+        pago con tarjeta, en JPG, PNG, WebP, HEIC (la foto tal cual sale del
+        iPhone) o PDF, de {tamanoMaximoMb} MB como máximo. El archivo queda
+        fuera de cualquier carpeta pública: solo lo abre quien revisa los
+        aportes.
+      </p>
+      <input
+        id="boleta"
+        name="boleta"
+        type="file"
+        required
+        accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        aria-describedby={error ? "boleta-ayuda boleta-error" : "boleta-ayuda"}
+        aria-invalid={error ? true : undefined}
+        className="w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-[var(--radius-sm)] file:border-0 file:bg-brand-sky file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-dark"
       />
-
-      <div>
-        <Boton type="submit" disabled={pendiente} className="px-6 py-3">
-          {pendiente ? "Procesando…" : "Continuar al pago"}
-        </Boton>
-      </div>
-    </form>
+      {error ? (
+        <p id="boleta-error" role="alert" className="text-xs font-medium text-danger">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
 /* -------------------------------------------------------------------------
-   Donativo depositado en el banco
+   Aporte a una campaña desde la portada
    ------------------------------------------------------------------------- */
 
+export type OpcionCampana = { slug: string; titulo: string; general: boolean };
+
 /**
- * El camino más corto: la boleta y, si el donante quiere, a qué niño va
- * dirigida. Ni nombre, ni correo, ni monto. No confirma nada: deja el donativo
- * pendiente de que el equipo coteje la boleta contra el estado de cuenta.
+ * Lo único obligatorio es la foto del comprobante. La campaña viene elegida
+ * desde la portada y se puede cambiar; el nombre y el mensaje son opcionales.
+ * No confirma nada: deja el aporte pendiente de que el administrador coteje
+ * la foto contra el estado de cuenta y anote el monto.
  */
-export function FormularioDonativoDirecto({
+export function FormularioAporteCampana({
   accion,
   tamanoMaximoMb,
+  campanas,
+  campanaInicial,
+  campanaFija,
 }: {
   accion: Accion;
   tamanoMaximoMb: number;
+  campanas: OpcionCampana[];
+  campanaInicial?: string;
+  /**
+   * En la página de una campaña compartida en redes la campaña ya está
+   * decidida: no se muestra el selector y viaja en un campo oculto.
+   */
+  campanaFija?: OpcionCampana;
 }) {
   const [estado, enviar, pendiente] = useActionState(accion, ESTADO_INICIAL);
   const e = estado.errores ?? {};
+  const general = campanas.find((c) => c.general);
+  const inicial =
+    campanas.find((c) => c.slug === campanaInicial)?.slug ?? general?.slug ?? "";
 
   return (
     <form action={enviar} className="flex flex-col gap-5" noValidate>
       <Mensajes estado={estado} />
 
+      {campanaFija ? (
+        <>
+          <input type="hidden" name="campana" value={campanaFija.slug} />
+          {e.campana ? (
+            <p role="alert" className="text-sm text-danger">
+              {e.campana}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <CampoSelect
+          id="campana"
+          name="campana"
+          etiqueta="¿A qué va tu aporte?"
+          ayuda="Elige una campaña o deja que se use donde más haga falta."
+          defaultValue={inicial}
+          error={e.campana}
+        >
+          {campanas.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.titulo}
+            </option>
+          ))}
+        </CampoSelect>
+      )}
+
+      <CampoBoleta error={e.boleta} tamanoMaximoMb={tamanoMaximoMb} />
+
       <CampoTexto
-        id="destinoNino"
-        name="destinoNino"
-        etiqueta="¿A qué niño va dirigido? (opcional)"
-        ayuda="Escribe su código o su nombre, como lo recuerdes. Si lo dejas en blanco, tu donativo se usa donde más haga falta."
-        maxLength={120}
-        error={e.destinoNino}
-        autoComplete="off"
+        id="deParteDe"
+        name="deParteDe"
+        etiqueta="De parte de (opcional)"
+        ayuda="Tu nombre o el de quien envía el aporte, si quieres que conste."
+        maxLength={80}
+        error={e.deParteDe}
+        autoComplete="name"
       />
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="boleta" className="text-sm font-semibold text-ink">
-          Foto o PDF de la boleta
-          <span className="ml-1 text-danger" aria-hidden="true">
-            *
-          </span>
-          <span className="visually-hidden">(obligatorio)</span>
-        </label>
-        <p id="boleta-ayuda" className="medida-lectura text-xs text-ink-soft">
-          La boleta sellada o el comprobante que da la banca en línea, en JPG,
-          PNG, WebP, HEIC (la foto tal cual sale del iPhone) o PDF, de{" "}
-          {tamanoMaximoMb} MB como máximo. El archivo queda fuera de cualquier
-          carpeta pública: solo lo abre el personal que revisa los aportes.
-        </p>
-        <input
-          id="boleta"
-          name="boleta"
-          type="file"
-          required
-          accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-          aria-describedby={e.boleta ? "boleta-ayuda boleta-error" : "boleta-ayuda"}
-          aria-invalid={e.boleta ? true : undefined}
-          className="w-full rounded-[var(--radius-sm)] border border-line bg-surface px-3 py-2.5 text-sm text-ink file:mr-3 file:rounded-[var(--radius-sm)] file:border-0 file:bg-brand-sky file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-dark"
-        />
-        {e.boleta ? (
-          <p
-            id="boleta-error"
-            role="alert"
-            className="text-xs font-medium text-danger"
-          >
-            {e.boleta}
-          </p>
-        ) : null}
-      </div>
+      <CampoArea
+        id="mensaje"
+        name="mensaje"
+        etiqueta="Un mensaje para la campaña (opcional)"
+        ayuda="Unas palabras de ánimo. Las lee el equipo del centro."
+        rows={3}
+        maxLength={500}
+        error={e.mensaje}
+      />
 
       <div>
         <Boton type="submit" disabled={pendiente} className="px-6 py-3">
-          {pendiente ? "Enviando…" : "Enviar mi donativo"}
+          {pendiente ? "Enviando…" : "Enviar mi aporte"}
         </Boton>
       </div>
     </form>
