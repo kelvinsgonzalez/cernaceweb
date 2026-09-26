@@ -11,11 +11,7 @@ import { modulosVisibles } from "@/lib/navegacion";
 const NAVEGACION = [
   { href: "/", etiqueta: "Inicio", icono: "House" },
   { href: "/apadrina", etiqueta: "Apadrina", icono: "HeartHandshake" },
-  {
-    href: "/inscripcion/beneficiario",
-    etiqueta: "Inscripción",
-    icono: "ClipboardList",
-  },
+  { href: "/inscripcion", etiqueta: "Inscripción", icono: "ClipboardList" },
   { href: "/donar", etiqueta: "Donar", icono: "HandCoins" },
   { href: "/contacto", etiqueta: "Contacto", icono: "Mail" },
 ];

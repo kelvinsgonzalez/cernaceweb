@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { Carrusel, type Lamina } from "@/components/carrusel";
 import {
@@ -11,8 +12,17 @@ import {
  * /admin/historias, en el mismo orden. Cada lámina lleva la foto, el título,
  * el relato breve y el enlace a la historia completa. Sin historias con foto
  * no se pinta nada: ni el título ni un marco vacío.
+ *
+ * `llamada` es lo que va debajo del carrusel: la portada pone ahí la
+ * invitación a ver a los niños que esperan padrino.
  */
-export async function CarruselHistorias({ className }: { className?: string }) {
+export async function CarruselHistorias({
+  className,
+  llamada,
+}: {
+  className?: string;
+  llamada?: ReactNode;
+}) {
   const historias = await prisma.story.findMany({
     where: { estado: "PUBLICADO" },
     orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
@@ -52,18 +62,22 @@ export async function CarruselHistorias({ className }: { className?: string }) {
 
   return (
     <section className={className} aria-labelledby="historias-titulo">
-      <h2
-        id="historias-titulo"
-        className="font-heading text-2xl font-semibold text-ink sm:text-3xl"
-      >
-        Conoce nuestras historias de éxito
-      </h2>
+      <div className="revela">
+        <p className="rotulo text-brand-primary">Historias de éxito</p>
+        <h2
+          id="historias-titulo"
+          className="filete mt-3 font-heading text-2xl font-semibold text-ink sm:text-3xl"
+        >
+          Conoce nuestras historias de éxito
+        </h2>
+      </div>
       <Carrusel
         laminas={laminas}
         etiqueta="Historias de quienes reciben tu apoyo"
         encuadre="cover"
-        className="mt-6"
+        className="mt-8"
       />
+      {llamada}
     </section>
   );
 }

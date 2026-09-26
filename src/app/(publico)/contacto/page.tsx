@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Tarjeta } from "@/components/ui";
 import { FormularioContacto } from "@/components/formularios-publicos";
 import { SeccionDirectorio, TarjetaCanales } from "@/components/directorio";
+import { SeccionJuntaDirectiva } from "@/components/junta-directiva";
 import { enviarContacto } from "../acciones";
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export default function ContactoPage() {
       </div>
 
       <SeccionDirectorio />
+      <SeccionJuntaDirectiva />
     </>
   );
 }

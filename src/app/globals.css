@@ -41,6 +41,12 @@
   --color-warn-fg: #755110;
   --color-bad-bg: #fbe7e8;
   --color-bad-fg: #8f2b35;
+  /* Completitud de cada apartado del expediente: verde lima si ya tiene
+     datos, naranja pálido si falta algo o no se ha tocado. */
+  --color-lima-bg: #e6f6c2;
+  --color-lima-fg: #3d5c0f;
+  --color-naranja-bg: #ffe5cc;
+  --color-naranja-fg: #93400d;
 
   /* Blanco frío para el texto sobre las superficies azules. */
   --color-crema: #f4f8ff;

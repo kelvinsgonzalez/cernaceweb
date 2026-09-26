@@ -9,16 +9,8 @@ import {
 } from "@/components/ui";
 import { ESTADO_INICIAL, type EstadoFormulario } from "@/lib/formularios";
 
-/** Las que ya se usan en el expediente, para no inventar categorías nuevas. */
-export const CATEGORIAS_DOCUMENTO = [
-  "Identificación",
-  "Clínico",
-  "Educativo",
-  "Socioeconómico",
-  "Autorizaciones",
-  "Informes de terapia",
-  "Otros",
-];
+// Las categorías viven en `categorias-documento.ts`: este archivo es de
+// cliente y lo que exporta llega al servidor como referencia, no como valor.
 
 export type ValoresDocumento = {
   nombre: string;

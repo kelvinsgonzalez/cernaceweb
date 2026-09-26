@@ -33,7 +33,19 @@ import {
   subirDocumento,
 } from "../acciones";
 import { FormularioComentario } from "./comentarios";
-import { CATEGORIAS_DOCUMENTO, FormularioDocumento } from "./documentos";
+import { FormularioDocumento } from "./documentos";
+import {
+  CATEGORIAS_DOCUMENTO,
+  CATEGORIAS_REQUERIDAS,
+} from "./categorias-documento";
+import {
+  ChipCompletitud,
+  claseIndice,
+  descripcionEstado,
+  etiquetaCorta,
+  evaluarCompletitud,
+  type IdSeccion,
+} from "./completitud";
 import { FormularioTerapia } from "./terapias";
 import { TAMANO_MAXIMO_DOCUMENTO } from "@/lib/almacenamiento";
 import { EstadosCabecera } from "./estados";
@@ -85,7 +97,7 @@ export async function generateMetadata({
   return { title: b ? `${b.nombres} ${b.apellidos}` : "Expediente" };
 }
 
-const SECCIONES = [
+const SECCIONES: { id: IdSeccion; etiqueta: string }[] = [
   { id: "generales", etiqueta: "Datos generales" },
   { id: "terapias", etiqueta: "Terapias" },
   { id: "fotografias", etiqueta: "Fotografías" },
@@ -258,6 +270,49 @@ export default async function ExpedientePage({
   ];
   const completitud = (criterios.filter(Boolean).length / criterios.length) * 100;
 
+  // Estado de cada apartado: lo usan el índice y la cabecera de cada tarjeta.
+  const estados = evaluarCompletitud({
+    generales: {
+      cui: beneficiario.cui,
+      direccion: beneficiario.direccion,
+      lugarNacimiento: beneficiario.lugarNacimiento,
+      idiomaHogar: beneficiario.idiomaHogar,
+      escolaridad: beneficiario.escolaridad,
+      telefono: beneficiario.telefono,
+      encargado: beneficiario.encargado
+        ? {
+            nombre: beneficiario.encargado.nombre,
+            parentesco: beneficiario.encargado.parentesco,
+            telefono: beneficiario.encargado.telefono,
+          }
+        : null,
+    },
+    terapias: beneficiario.terapias.length,
+    fotografias: {
+      principal: Boolean(beneficiario.fotoArchivo),
+      evidencia: beneficiario.fotosExpediente.length,
+    },
+    inscripciones,
+    cicloActual: new Date().getFullYear(),
+    clinico: {
+      permiso: puedeClinico,
+      ficha: clinico,
+      evaluaciones: evaluaciones.length,
+    },
+    socioeconomico: { permiso: puedeSocio, ficha: Boolean(socio) },
+    documentos: {
+      permiso: puedeDocumentos,
+      lista: documentos,
+      categoriasRequeridas: CATEGORIAS_REQUERIDAS,
+    },
+    plan: {
+      permiso: puedeSeguimiento,
+      ficha: beneficiario.plan,
+      responsables: beneficiario.responsables.length,
+    },
+    avances: { permiso: puedeSeguimiento, total: avances.length },
+  });
+
   const nombreCompleto = `${beneficiario.nombres} ${beneficiario.apellidos}`;
   const padrinazgo = beneficiario.padrinazgos[0];
   const proximaCita = beneficiario.citas[0];
@@ -382,19 +437,34 @@ export default async function ExpedientePage({
         </div>
       </Tarjeta>
 
-      {/* Índice */}
+      {/* Índice: cada acceso dice si el apartado ya tiene datos (lima) o si
+          falta algo (naranja), y el título del enlace detalla qué falta. */}
       <nav aria-label="Secciones del expediente" className="mt-6">
         <ul className="flex flex-wrap gap-2">
-          {SECCIONES.map((seccion) => (
-            <li key={seccion.id}>
-              <a
-                href={`#${seccion.id}`}
-                className="inline-block rounded-full border border-line bg-surface px-4 py-1.5 text-sm font-medium text-ink hover:border-brand-primary hover:text-brand-primary"
-              >
-                {seccion.etiqueta}
-              </a>
-            </li>
-          ))}
+          {SECCIONES.map((seccion) => {
+            const estado = estados[seccion.id];
+            const corta = etiquetaCorta(estado);
+            const detalle = descripcionEstado(estado);
+            return (
+              <li key={seccion.id}>
+                <a
+                  href={`#${seccion.id}`}
+                  title={detalle ?? undefined}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium ${claseIndice(estado)}`}
+                >
+                  {seccion.etiqueta}
+                  {corta ? (
+                    <span className="rounded-full bg-surface/70 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">
+                      {corta}
+                      {detalle ? (
+                        <span className="visually-hidden">. {detalle}</span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </a>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
@@ -407,6 +477,7 @@ export default async function ExpedientePage({
                 id="generales-titulo"
                 titulo="Datos generales"
                 icono={<UserRound className="size-5" />}
+                acciones={<ChipCompletitud estado={estados.generales} />}
               />
               <dl className="grid gap-5 p-5 sm:grid-cols-2 lg:grid-cols-3">
                 <Campo etiqueta="Código de expediente">
@@ -478,10 +549,13 @@ export default async function ExpedientePage({
                 descripcion="Lo que recibe este niño, en palabras del equipo. Los nombres salen en el sitio si está publicado; la explicación queda para el equipo y la familia."
                 icono={<HeartPulse className="size-5" />}
                 acciones={
-                  <Chip tono="neutro">
-                    {beneficiario.terapias.length}{" "}
-                    {beneficiario.terapias.length === 1 ? "terapia" : "terapias"}
-                  </Chip>
+                  <>
+                    <ChipCompletitud estado={estados.terapias} />
+                    <Chip tono="neutro">
+                      {beneficiario.terapias.length}{" "}
+                      {beneficiario.terapias.length === 1 ? "terapia" : "terapias"}
+                    </Chip>
+                  </>
                 }
               />
               {beneficiario.terapias.length === 0 ? (
@@ -564,14 +638,17 @@ export default async function ExpedientePage({
                 descripcion="La principal identifica el expediente y es la que sale en el sitio cuando se le busca padrino. Las de evidencia documentan el caso."
                 icono={<Images className="size-5" />}
                 acciones={
-                  puedeEditar ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/fotos`}
-                      variante="contorno"
-                    >
-                      Gestionar fotografías
-                    </EnlaceBoton>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.fotografias} />
+                    {puedeEditar ? (
+                      <EnlaceBoton
+                        href={`/admin/beneficiarios/${beneficiario.id}/fotos`}
+                        variante="contorno"
+                      >
+                        Gestionar fotografías
+                      </EnlaceBoton>
+                    ) : null}
+                  </>
                 }
               />
               <div className="flex flex-wrap items-start gap-6 p-5">
@@ -637,14 +714,17 @@ export default async function ExpedientePage({
                 descripcion="Una ficha por ciclo. La más reciente es la vigente."
                 icono={<ClipboardList className="size-5" />}
                 acciones={
-                  puedeEditar ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/inscripcion`}
-                      variante="contorno"
-                    >
-                      Llenar la ficha
-                    </EnlaceBoton>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.inscripciones} />
+                    {puedeEditar ? (
+                      <EnlaceBoton
+                        href={`/admin/beneficiarios/${beneficiario.id}/inscripcion`}
+                        variante="contorno"
+                      >
+                        Llenar la ficha
+                      </EnlaceBoton>
+                    ) : null}
+                  </>
                 }
               />
               {inscripciones.length === 0 ? (
@@ -721,6 +801,7 @@ export default async function ExpedientePage({
                 icono={<Stethoscope className="size-5" />}
                 acciones={
                   <>
+                    <ChipCompletitud estado={estados.clinico} />
                     {puedeEditarClinico ? (
                       <EnlaceBoton
                         href={`/admin/beneficiarios/${beneficiario.id}/clinico`}
@@ -813,14 +894,17 @@ export default async function ExpedientePage({
                 descripcion="Estudio del hogar realizado por trabajo social."
                 icono={<Home className="size-5" />}
                 acciones={
-                  puedeEditarSocio ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/socioeconomico`}
-                      variante="contorno"
-                    >
-                      {socio ? "Actualizar" : "Registrar"}
-                    </EnlaceBoton>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.socioeconomico} />
+                    {puedeEditarSocio ? (
+                      <EnlaceBoton
+                        href={`/admin/beneficiarios/${beneficiario.id}/socioeconomico`}
+                        variante="contorno"
+                      >
+                        {socio ? "Actualizar" : "Registrar"}
+                      </EnlaceBoton>
+                    ) : null}
+                  </>
                 }
               />
               {!puedeSocio ? (
@@ -894,12 +978,15 @@ export default async function ExpedientePage({
                 descripcion="Los marcados como compartidos son los que el padrino y la familia pueden abrir desde su portal."
                 icono={<FileText className="size-5" />}
                 acciones={
-                  puedeDocumentos ? (
-                    <Chip tono="neutro">
-                      {documentos.length}{" "}
-                      {documentos.length === 1 ? "documento" : "documentos"}
-                    </Chip>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.documentos} />
+                    {puedeDocumentos ? (
+                      <Chip tono="neutro">
+                        {documentos.length}{" "}
+                        {documentos.length === 1 ? "documento" : "documentos"}
+                      </Chip>
+                    ) : null}
+                  </>
                 }
               />
               {!puedeDocumentos ? (
@@ -1040,14 +1127,17 @@ export default async function ExpedientePage({
                 descripcion="El objetivo general lo fija la administración al aprobar la terapia; los responsables son quienes pueden registrar avances."
                 icono={<Target className="size-5" />}
                 acciones={
-                  puedeGestionarTerapia ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/terapia`}
-                      variante="contorno"
-                    >
-                      {beneficiario.plan ? "Editar plan" : "Aprobar terapia"}
-                    </EnlaceBoton>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.terapia} />
+                    {puedeGestionarTerapia ? (
+                      <EnlaceBoton
+                        href={`/admin/beneficiarios/${beneficiario.id}/terapia`}
+                        variante="contorno"
+                      >
+                        {beneficiario.plan ? "Editar plan" : "Aprobar terapia"}
+                      </EnlaceBoton>
+                    ) : null}
+                  </>
                 }
               />
               {!puedeSeguimiento ? (
@@ -1125,14 +1215,17 @@ export default async function ExpedientePage({
                 descripcion="Los avances marcados como visibles son los que el padrino ve en su portal."
                 icono={<ClipboardList className="size-5" />}
                 acciones={
-                  puedeRegistrarAvance ? (
-                    <EnlaceBoton
-                      href={`/admin/beneficiarios/${beneficiario.id}/avance`}
-                      variante="contorno"
-                    >
-                      Registrar avance
-                    </EnlaceBoton>
-                  ) : undefined
+                  <>
+                    <ChipCompletitud estado={estados.avances} />
+                    {puedeRegistrarAvance ? (
+                      <EnlaceBoton
+                        href={`/admin/beneficiarios/${beneficiario.id}/avance`}
+                        variante="contorno"
+                      >
+                        Registrar avance
+                      </EnlaceBoton>
+                    ) : null}
+                  </>
                 }
               />
               {!puedeSeguimiento ? (

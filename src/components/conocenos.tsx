@@ -1,7 +1,6 @@
 import Image from "next/image";
 import {
   Accessibility,
-  BadgeCheck,
   Compass,
   Eye,
   HandHeart,
@@ -12,7 +11,6 @@ import {
   Sparkles,
   Sun,
   Target,
-  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import { EnlaceBoton, Tarjeta } from "@/components/ui";
@@ -22,7 +20,7 @@ import { Pestanas, type Pestana } from "@/components/pestanas";
    Contenido institucional
 
    Es el texto oficial de AUPADIP y CERNACE (acta de constitución, misión,
-   visión y listado de junta directiva). No viene de la base de datos porque
+   visión). No viene de la base de datos porque
    no lo edita nadie desde el panel: cambia cuando cambia el acta.
    ------------------------------------------------------------------------- */
 
@@ -118,46 +116,33 @@ const VALORES: { icono: LucideIcon; nombre: string; texto: string }[] = [
   {
     icono: HandHeart,
     nombre: "Servicio",
-    texto: "Prestar ayuda y apoyo a los demás, buscando su bienestar y satisfacción.",
+    texto:
+      "Prestar ayuda y apoyo a los demás, buscando su bienestar y satisfacción.",
   },
   {
     icono: Handshake,
     nombre: "Solidaridad",
-    texto: "Apoyo y unión con los demás, especialmente en momentos de necesidad o dificultad.",
+    texto:
+      "Apoyo y unión con los demás, especialmente en momentos de necesidad o dificultad.",
   },
   {
     icono: Heart,
     nombre: "Empatía",
-    texto: "Comprender y compartir los sentimientos y las emociones de los demás.",
+    texto:
+      "Comprender y compartir los sentimientos y las emociones de los demás.",
   },
   {
     icono: Sun,
     nombre: "Esperanza",
-    texto: "Creer en un futuro mejor que inspira a los demás a seguir adelante.",
+    texto:
+      "Creer en un futuro mejor que inspira a los demás a seguir adelante.",
   },
   {
     icono: Sparkles,
     nombre: "Compasión",
-    texto: "Respeto y voluntad activa de aliviar el sufrimiento de otra persona.",
+    texto:
+      "Respeto y voluntad activa de aliviar el sufrimiento de otra persona.",
   },
-];
-
-/* Listado vigente ante el Ministerio de Salud Pública y Asistencia Social.
-   Se publican nombre y cargo: el DPI y el NIT del acta no salen del expediente. */
-const JUNTA_DIRECTIVA = [
-  { nombre: "Daniel Leal Salazar", cargo: "Presidente y representante legal" },
-  { nombre: "Vilmer Noel Herrera De León", cargo: "Vicepresidente" },
-  { nombre: "Rolendio Hermocindo Gil Pereira", cargo: "Secretario" },
-  { nombre: "Noé Yovany Gálvez Robledo", cargo: "Tesorero" },
-  { nombre: "Antonio Velásquez Morales", cargo: "Vocal I" },
-  { nombre: "Julio Rodolfo Divas Navarro", cargo: "Vocal II" },
-];
-
-const COMITE_FISCALIZACION = [
-  { nombre: "Heidy Maridalia Rodríguez Carbajal", cargo: "Presidenta" },
-  { nombre: "Isaías Osnibal Gálvez Robledo", cargo: "Vicepresidente" },
-  { nombre: "Amarildo Leví Méndez Vásquez", cargo: "Secretario" },
-  { nombre: "Ángela Marleny Gálvez Roblero", cargo: "Tesorera" },
 ];
 
 /* -------------------------------------------------------------------------
@@ -189,23 +174,29 @@ export function SeccionConocenos() {
           <div className="revela space-y-5">
             <Tarjeta className="tarjeta-viva p-6 sm:p-8">
               <h3 className="flex items-center gap-2 font-heading text-xl font-semibold text-ink">
-                <MapPin aria-hidden="true" className="size-5 text-brand-primary" />
+                <MapPin
+                  aria-hidden="true"
+                  className="size-5 text-brand-primary"
+                />
                 ¿Por qué en Cuilco?
               </h3>
               <p className="medida-lectura mt-3 text-ink-soft">
                 Dos de los miembros fundadores son originarios de Cuilco y saben
-                lo que es criar a un hijo con discapacidad. En el municipio había
-                muchos casos y ningún centro que ofreciera atención
+                lo que es criar a un hijo con discapacidad. En el municipio
+                había muchos casos y ningún centro que ofreciera atención
                 especializada. Por eso, el 2 de julio de 2012, se inauguró
                 CERNACE con programas de educación especial, rehabilitación
-                física, terapia ocupacional, atención médica y formación para las
-                familias.
+                física, terapia ocupacional, atención médica y formación para
+                las familias.
               </p>
             </Tarjeta>
 
             <Tarjeta className="tarjeta-viva bg-brand-sky p-6 sm:p-8">
               <h3 className="flex items-center gap-2 font-heading text-xl font-semibold text-ink">
-                <ScrollText aria-hidden="true" className="size-5 text-brand-primary" />
+                <ScrollText
+                  aria-hidden="true"
+                  className="size-5 text-brand-primary"
+                />
                 Personería jurídica
               </h3>
               <p className="medida-lectura mt-3 text-sm text-ink-soft">
@@ -245,7 +236,10 @@ export function SeccionConocenos() {
         {/* 3. A quiénes atendemos ---------------------------------------- */}
         <Tarjeta className="revela mt-14 p-6 sm:p-8">
           <h3 className="flex items-center gap-2 font-heading text-xl font-semibold text-ink">
-            <Accessibility aria-hidden="true" className="size-5 text-brand-primary" />
+            <Accessibility
+              aria-hidden="true"
+              className="size-5 text-brand-primary"
+            />
             A quiénes atendemos
           </h3>
           <p className="medida-lectura mt-2 text-sm text-ink-soft">
@@ -303,14 +297,26 @@ export function SeccionConocenos() {
           </ol>
         </div>
       </div>
+    </section>
+  );
+}
 
-      {/* 5. Valores y organización --------------------------------------- */}
+/**
+ * Los valores y la invitación a conocer el centro. Va aparte de «Conócenos»
+ * para que la portada pueda meter las historias de éxito entre medio.
+ */
+export function SeccionValores() {
+  return (
+    <section aria-labelledby="valores-titulo">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20">
         <div className="revela">
           <p className="rotulo text-brand-primary">Nuestros valores</p>
-          <h3 className="filete mt-3 font-heading text-2xl font-semibold text-ink sm:text-3xl">
+          <h2
+            id="valores-titulo"
+            className="filete mt-3 font-heading text-2xl font-semibold text-ink sm:text-3xl"
+          >
             Lo que sostiene el trabajo diario
-          </h3>
+          </h2>
         </div>
 
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -320,46 +326,21 @@ export function SeccionConocenos() {
                 <span className="flex size-11 items-center justify-center rounded-[var(--radius-sm)] bg-brand-sky text-brand-primary">
                   <Icono aria-hidden="true" className="size-5" />
                 </span>
-                <h4 className="mt-4 font-heading text-lg font-semibold text-ink">
+                <h3 className="mt-4 font-heading text-lg font-semibold text-ink">
                   {nombre}
-                </h4>
+                </h3>
                 <p className="mt-2 text-sm text-ink-soft">{texto}</p>
               </Tarjeta>
             </li>
           ))}
         </ul>
 
-        <div className="revela mt-14">
-          <p className="rotulo text-brand-primary">Cómo nos organizamos</p>
-          <h3 className="filete mt-3 font-heading text-2xl font-semibold text-ink sm:text-3xl">
-            Junta directiva 2026
-          </h3>
-          <p className="medida-lectura mt-3 text-ink-soft">
-            La asamblea general elige cada año a la junta directiva y al comité
-            de fiscalización, y el listado se actualiza ante el Ministerio de
-            Salud Pública y Asistencia Social.
-          </p>
-        </div>
-
-        <div className="mt-8 grid gap-5 lg:grid-cols-2">
-          <ListaCargos
-            titulo="Junta directiva"
-            icono={UsersRound}
-            personas={JUNTA_DIRECTIVA}
-          />
-          <ListaCargos
-            titulo="Comité de fiscalización"
-            icono={BadgeCheck}
-            personas={COMITE_FISCALIZACION}
-          />
-        </div>
-
-        <Tarjeta className="revela mt-5 bg-brand-sky p-6 sm:p-8">
+        <Tarjeta className="revela mt-14 bg-brand-sky p-6 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div>
-              <h4 className="font-heading text-xl font-semibold text-ink">
+              <h3 className="font-heading text-xl font-semibold text-ink">
                 ¿Quieres conocernos de cerca?
-              </h4>
+              </h3>
               <p className="medida-lectura mt-2 text-ink-soft">
                 La coordinación general está a cargo del Lic. Gudberto Salomón
                 Gálvez Robledo. Escríbenos para visitar el centro, ofrecer tu
@@ -408,45 +389,4 @@ function BloqueIdentidad({
       ) : null}
     </Tarjeta>
   );
-}
-
-function ListaCargos({
-  titulo,
-  icono: Icono,
-  personas,
-}: {
-  titulo: string;
-  icono: LucideIcon;
-  personas: { nombre: string; cargo: string }[];
-}) {
-  return (
-    <Tarjeta className="revela tarjeta-viva h-full p-6 sm:p-8">
-      <h4 className="flex items-center gap-2 font-heading text-xl font-semibold text-ink">
-        <Icono aria-hidden="true" className="size-5 text-brand-primary" />
-        {titulo}
-      </h4>
-      <ul className="mt-5 divide-y divide-line">
-        {personas.map((persona) => (
-          <li key={persona.nombre} className="flex items-center gap-3 py-3">
-            <span
-              aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-sky text-sm font-semibold text-brand-primary"
-            >
-              {inicialesNombre(persona.nombre)}
-            </span>
-            <div>
-              <p className="font-medium text-ink">{persona.nombre}</p>
-              <p className="text-sm text-ink-soft">{persona.cargo}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </Tarjeta>
-  );
-}
-
-/** Primera letra del nombre y del primer apellido, para el círculo de la lista. */
-function inicialesNombre(nombre: string): string {
-  const partes = nombre.trim().split(/\s+/);
-  return `${partes[0]?.[0] ?? ""}${partes[1]?.[0] ?? ""}`.toUpperCase();
 }

@@ -124,7 +124,7 @@ export function EnlaceBoton({
    Chips de estado — nunca comunican solo con color: cada uno lleva icono.
    ------------------------------------------------------------------------- */
 
-type Tono = "ok" | "warn" | "bad" | "neutro" | "info";
+type Tono = "ok" | "warn" | "bad" | "neutro" | "info" | "lima" | "naranja";
 
 const estilosChip: Record<Tono, string> = {
   ok: "bg-ok-bg text-ok-fg ring-1 ring-ok-fg/15",
@@ -132,6 +132,8 @@ const estilosChip: Record<Tono, string> = {
   bad: "bg-bad-bg text-bad-fg ring-1 ring-bad-fg/15",
   neutro: "bg-canvas text-ink-soft border border-line",
   info: "bg-brand-sky text-brand-dark ring-1 ring-brand-primary/20",
+  lima: "bg-lima-bg text-lima-fg ring-1 ring-lima-fg/20",
+  naranja: "bg-naranja-bg text-naranja-fg ring-1 ring-naranja-fg/20",
 };
 
 const iconoPorTono: Record<Tono, ReactNode> = {
@@ -140,6 +142,8 @@ const iconoPorTono: Record<Tono, ReactNode> = {
   bad: <CircleAlert aria-hidden="true" className="size-4 shrink-0" />,
   neutro: <CircleMinus aria-hidden="true" className="size-4 shrink-0" />,
   info: <Clock3 aria-hidden="true" className="size-4 shrink-0" />,
+  lima: <CircleCheck aria-hidden="true" className="size-4 shrink-0" />,
+  naranja: <CircleAlert aria-hidden="true" className="size-4 shrink-0" />,
 };
 
 export function Chip({

@@ -1,16 +1,9 @@
-import Link from "next/link";
-import { HeartPulse } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { EnlaceBoton, Tarjeta } from "@/components/ui";
-import { IconoPrograma } from "@/components/icono-programa";
-import { PortadaBeneficiario } from "@/components/foto-beneficiario";
 import { Carrusel, type Lamina } from "@/components/carrusel";
-import { SeccionConocenos } from "@/components/conocenos";
-import { calcularEdad } from "@/lib/fechas";
-import { listarTerapias, primerNombre, urlFotoBeneficiario } from "@/lib/utils";
-
-// Sin esto la galería de la portada quedaría congelada en el momento del build.
-export const dynamic = "force-dynamic";
+import { SeccionConocenos, SeccionValores } from "@/components/conocenos";
+import { CarruselHistorias } from "@/components/carrusel-historias";
+import { FILTRO_ESPERAN_PADRINO } from "@/components/galeria-beneficiarios";
 
 const LAMINAS: Lamina[] = [
   {
@@ -36,32 +29,11 @@ const LAMINAS: Lamina[] = [
 ];
 
 export default async function LandingPage() {
-  const [programas, esperando] = await Promise.all([
-    prisma.programa.findMany({
-      where: { activo: true },
-      orderBy: { nombre: "asc" },
-    }),
-    prisma.beneficiario.findMany({
-      where: {
-        estado: "ACTIVO",
-        // Las dos condiciones: la familia lo pidió y la administración lo autorizó.
-        solicitaPatrocinio: true,
-        publicadoEnGaleria: true,
-        padrinazgos: { none: { activo: true } },
-      },
-      // La galería pública solo expone primer nombre, edad y terapias.
-      select: {
-        id: true,
-        nombres: true,
-        fechaNacimiento: true,
-        resumenPublico: true,
-        fotoArchivo: true,
-        terapias: { orderBy: { orden: "asc" }, select: { nombre: true } },
-      },
-      take: 3,
-      orderBy: { fechaIngreso: "asc" },
-    }),
-  ]);
+  // Los mismos que enseña /apadrina/todos, para que el botón no prometa más
+  // de lo que hay en el listado.
+  const esperan = await prisma.beneficiario.count({
+    where: FILTRO_ESPERAN_PADRINO,
+  });
 
   return (
     <>
@@ -99,7 +71,7 @@ export default async function LandingPage() {
                 Apadrinar a un niño
               </EnlaceBoton>
               <EnlaceBoton
-                href="/inscripcion/beneficiario"
+                href="/inscripcion"
                 variante="suave"
                 className="bg-transparent px-6 py-3 text-base text-crema/85 hover:bg-crema/10 hover:text-crema"
               >
@@ -119,127 +91,36 @@ export default async function LandingPage() {
       {/* Conócenos */}
       <SeccionConocenos />
 
-      {/* Programas */}
-      <section
+      {/* Historias de éxito, con la invitación a apadrinar. Sin historias
+          publicadas la sección entera desaparece, botón incluido. */}
+      <CarruselHistorias
         className="mx-auto max-w-6xl px-4 py-14 sm:py-20"
-        aria-labelledby="programas-titulo"
-      >
-        <h2
-          id="programas-titulo"
-          className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
-        >
-          Programas
-        </h2>
-        <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {programas.map((programa) => (
-            <li key={programa.id}>
-              <Tarjeta className="h-full p-6">
-                <span className="flex size-12 items-center justify-center rounded-[var(--radius-sm)] bg-brand-sky text-brand-primary">
-                  <IconoPrograma nombre={programa.icono} className="size-5" />
-                </span>
-                <h3 className="mt-5 font-heading text-xl font-semibold text-ink">
-                  {programa.nombre}
+        llamada={
+          <Tarjeta className="revela mt-8 bg-brand-sky p-6 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div>
+                <h3 className="font-heading text-xl font-semibold text-ink">
+                  Cada historia empieza con un padrino
                 </h3>
-                <p className="medida-lectura mt-2 text-sm text-ink-soft">
-                  {programa.descripcion}
+                <p className="medida-lectura mt-2 text-ink-soft">
+                  {esperan > 0
+                    ? `Hoy ${esperan === 1 ? "hay un niño que espera" : `hay ${esperan} niños que esperan`} un padrino. Conócelos y elige a quién acompañar.`
+                    : "Conoce a los niños que esperan un padrino y elige a quién acompañar."}
                 </p>
-              </Tarjeta>
-            </li>
-          ))}
-        </ul>
-
-        {/* Puente hacia el formulario de inscripción, más abajo en esta misma página. */}
-        <Tarjeta className="mt-10 bg-brand-sky p-6 sm:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div>
-              <h3 className="font-heading text-2xl font-semibold text-ink sm:text-3xl">
-                También queremos ayudarte
-              </h3>
-              <p className="medida-lectura mt-3 text-ink-soft">
-                Ningún diagnóstico define hasta dónde puede llegar un niño. Si
-                en tu familia hay alguien que necesita terapia, equipo adaptado
-                o acompañamiento, aquí empieza el camino: cuéntanos su historia
-                y damos el primer paso juntos.
-              </p>
-            </div>
-            <EnlaceBoton
-              href="/inscripcion/beneficiario"
-              className="px-6 py-3 text-base"
-            >
-              Inscribir a un niño
-            </EnlaceBoton>
-          </div>
-        </Tarjeta>
-      </section>
-
-      {/* Esperan padrino */}
-      <section
-        className="border-y border-line bg-surface py-14 sm:py-20"
-        aria-labelledby="esperan-titulo"
-      >
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2
-                id="esperan-titulo"
-                className="font-heading text-3xl font-semibold text-ink sm:text-4xl"
+              </div>
+              <EnlaceBoton
+                href="/apadrina/todos"
+                className="px-6 py-3 text-base"
               >
-                Beneficiarios que esperan padrino
-              </h2>
-              <p className="medida-lectura mt-3 text-ink-soft">
-                Publicamos únicamente su primer nombre, su edad y las terapias
-                que recibe. El resto del expediente es confidencial.
-              </p>
+                Ver a los niños sin padrino
+              </EnlaceBoton>
             </div>
-            <EnlaceBoton href="/apadrina" variante="contorno">
-              Ver a todos
-            </EnlaceBoton>
-          </div>
+          </Tarjeta>
+        }
+      />
 
-          {esperando.length === 0 ? (
-            <p className="mt-8 text-ink-soft">
-              Ahora mismo todos los beneficiarios publicados tienen padrino
-              asignado.
-            </p>
-          ) : (
-            <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {esperando.map((nino) => {
-                const nombre = primerNombre(nino.nombres);
-                return (
-                  <li key={nino.id}>
-                    <Tarjeta className="flex h-full flex-col p-6">
-                      <PortadaBeneficiario
-                        nombre={nombre}
-                        fotoUrl={urlFotoBeneficiario(nino.id, nino.fotoArchivo)}
-                      />
-                      <h3 className="mt-5 font-heading text-xl font-semibold text-ink">
-                        {nombre}, {calcularEdad(nino.fechaNacimiento)} años
-                      </h3>
-                      <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-brand-primary">
-                        <HeartPulse aria-hidden="true" className="size-4 shrink-0" />
-                        {listarTerapias(nino.terapias)}
-                      </p>
-                      {nino.resumenPublico ? (
-                        <p className="medida-lectura mt-3 flex-1 text-sm text-ink-soft">
-                          {nino.resumenPublico}
-                        </p>
-                      ) : null}
-                      <Link
-                        href={`/apadrina/${nino.id}`}
-                        className="mt-5 inline-flex text-sm font-semibold text-brand-primary underline underline-offset-4"
-                      >
-                        Ver su ficha
-                        <span className="visually-hidden"> de {nombre}</span>
-                      </Link>
-                    </Tarjeta>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
-
+      {/* Valores */}
+      <SeccionValores />
     </>
   );
 }

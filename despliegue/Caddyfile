@@ -1,0 +1,19 @@
+# Caddy pide el certificado a Let's Encrypt solo, en cuanto el DNS del dominio
+# apunta a este servidor y los puertos 80/443 están abiertos.
+
+# www → dominio sin www
+www.{$DOMINIO} {
+	redir https://{$DOMINIO}{uri} permanent
+}
+
+{$DOMINIO} {
+	encode gzip zstd
+	# Caddy no limita el cuerpo por defecto; Next ya recorta en 45 MB.
+	reverse_proxy app:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

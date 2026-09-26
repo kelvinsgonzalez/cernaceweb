@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env*
+almacenamiento
+Documentos
+docs
+puntos-de-retorno
+*.tsbuildinfo
+src/generated

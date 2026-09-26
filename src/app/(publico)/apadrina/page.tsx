@@ -7,7 +7,6 @@ import {
   beneficiariosQueEsperan,
 } from "@/components/galeria-beneficiarios";
 import { SeccionComoAyudar } from "@/components/como-ayudar";
-import { CarruselHistorias } from "@/components/carrusel-historias";
 
 export const metadata: Metadata = {
   title: "Apadrina a un niño",
@@ -43,9 +42,6 @@ export default async function GaleriaPage() {
       </section>
 
       <SeccionComoAyudar />
-
-      {/* Las historias de éxito: lo que el apadrinamiento hace posible. */}
-      <CarruselHistorias className="mx-auto max-w-6xl px-4 py-12 sm:py-16" />
 
       {/* La llamada: cuántos esperan y los dos caminos para ayudar. */}
       <section
