@@ -641,3 +641,32 @@ table {
     opacity: 1;
   }
 }
+
+/* =========================================================================
+   Logo — la palabra CERNACE hace una ola al pasar el ratón
+   ========================================================================= */
+
+.logo-letra {
+  display: inline-block;
+  transform-origin: 50% 100%;
+  transition: transform 0.35s var(--ease-suave);
+}
+
+@keyframes logo-ola {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  40% {
+    transform: translateY(-0.28em) rotate(-6deg);
+  }
+  70% {
+    transform: translateY(0.06em) rotate(2deg);
+  }
+}
+
+.group:hover .logo-letra,
+.group:focus-visible .logo-letra {
+  animation: logo-ola 0.7s var(--ease-suave) both;
+  animation-delay: calc(var(--i) * 55ms);
+}

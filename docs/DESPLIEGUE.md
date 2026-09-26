@@ -228,3 +228,69 @@ imágenes viejas de builds anteriores.
 - [ ] Primera copia de seguridad hecha y probada.
 - [ ] Renovación automática del dominio activada.
 - [ ] Correo de contacto real en `/admin` (el que muestra la web).
+
+---
+
+## 7. Variante: servir desde tu propia Mac con un túnel de Cloudflare
+
+Sin VPS: el dominio (comprado en Namecheap el 26/09/2026) entra por Cloudflare
+y un túnel lo conecta con la app corriendo en tu computadora. No hay que abrir
+puertos ni tener IP fija, y el HTTPS lo pone Cloudflare. A cambio, la web solo
+está viva mientras la Mac esté encendida y con internet.
+
+### 7.1 DNS a Cloudflare (una sola vez)
+
+1. Cuenta gratuita en <https://dash.cloudflare.com> → *Add a domain* →
+   `cernace.org` → plan **Free**. Al final muestra **dos nameservers**
+   (`xxx.ns.cloudflare.com`).
+2. En Namecheap, pestaña *Domain* → **Nameservers** → cambiar *Namecheap
+   BasicDNS* por **Custom DNS** → pegar los dos nameservers → ✓ guardar.
+3. En *Redirect Domain* borrar la regla `cernace.org → http://www.cernace.org/`:
+   con el DNS en Cloudflare ya no aplica y solo confunde.
+4. Esperar el correo *"cernace.org is now active on Cloudflare"* (minutos, a
+   veces horas). En Cloudflare, *SSL/TLS → Overview* dejar **Full**.
+
+### 7.2 Crear el túnel con nombre
+
+El túnel actual (`cloudflared tunnel --url http://localhost:3100`) es un túnel
+rápido con dirección aleatoria; hay que sustituirlo por uno con nombre.
+
+1. Cloudflare → **Zero Trust** → *Networks → Tunnels → Create a tunnel* →
+   *Cloudflared* → nombre `cernace-mac`.
+2. En *Install connector* elegir **macOS** y copiar el comando; es de la forma:
+
+   ```bash
+   sudo cloudflared service install eyJhIjoi...   # el token es largo
+   ```
+
+   Ejecutarlo en la terminal: deja `cloudflared` como servicio de `launchd`,
+   que arranca solo al encender la Mac. Antes, cerrar el túnel rápido
+   (`Ctrl+C` en su terminal o `pkill cloudflared`).
+3. Pestaña *Public Hostname* → *Add a public hostname*:
+
+   | Subdomain | Domain | Type | URL |
+   | --- | --- | --- | --- |
+   | *(vacío)* | cernace.org | HTTP | `localhost:3200` |
+   | www | cernace.org | HTTP | `localhost:3200` |
+
+   Cloudflare crea los registros DNS (CNAME al túnel) por ti.
+
+### 7.3 La app en modo producción
+
+```bash
+cd ~/ProyectosWEB/webapehue/cernaceweb
+# .env: DATABASE_URL apuntando al Postgres local (docker :5435) y AUTH_TRUST_HOST=true
+npm run build
+PORT=3200 npm start   # el 3000 ya lo ocupan otros proyectos en esta Mac
+```
+
+`https://cernace.org` ya responde. Para que sobreviva a reinicios, lo más
+simple es dejar `npm start` corriendo en una sesión de `tmux` o crear un
+`launchd` como el de cloudflared. Y desactivar la suspensión de la Mac
+(*Ajustes → Batería / Pantalla y energía*), o `caffeinate -s npm start`.
+
+### 7.4 Mudarse al VPS más adelante
+
+Los archivos y la base se mueven con las copias de la sección 5. En el túnel
+basta cambiar el destino del hostname (o instalar el conector en el VPS con el
+mismo token) sin tocar nada del DNS ni de Namecheap.

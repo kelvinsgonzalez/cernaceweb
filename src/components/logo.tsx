@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Smile } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 /**
  * Vive en su propio archivo, y no en `publico.tsx`, porque ese módulo importa
@@ -8,17 +6,37 @@ import { cn } from "@/lib/utils";
  * cliente de base de datos al paquete del navegador.
  */
 
-/** El azulejo de la marca: la urdimbre del telar y, encima, la sonrisa. */
-export function MarcaCernace({ className }: { className?: string }) {
+const LETRAS = Array.from("CERNACE");
+
+/**
+ * Solo la palabra, sin azulejo. Cada letra es un span con su índice en `--i`
+ * para que, al pasar el ratón, la ola recorra la palabra de izquierda a
+ * derecha (ver `.logo-letra` en globals.css). Las letras van marcadas como
+ * decorativas y la palabra completa queda para lectores de pantalla.
+ */
+export function PalabraCernace({
+  className = "",
+  compacta = false,
+}: {
+  className?: string;
+  compacta?: boolean;
+}) {
   return (
     <span
-      aria-hidden="true"
-      className={cn(
-        "trama-fina-clara flex size-11 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-brand-primary text-brand-yellow ring-1 ring-brand-yellow/60 transition-transform duration-300 ease-suave group-hover:-rotate-3",
-        className,
-      )}
+      className={`logo-palabra font-heading font-semibold tracking-tight ${compacta ? "text-lg" : "text-2xl"} ${className}`}
     >
-      <Smile className="size-6" />
+      <span className="sr-only">CERNACE</span>
+      <span aria-hidden="true">
+        {LETRAS.map((letra, i) => (
+          <span
+            key={i}
+            className="logo-letra"
+            style={{ "--i": i } as React.CSSProperties}
+          >
+            {letra}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }
@@ -31,13 +49,8 @@ export function Logo({
   href?: string;
 }) {
   return (
-    <Link href={href} className="group flex items-center gap-3">
-      <MarcaCernace />
-      <span
-        className={`font-heading text-2xl font-semibold tracking-tight ${oscuro ? "text-crema" : "text-brand-dark"}`}
-      >
-        CERNACE
-      </span>
+    <Link href={href} className="group inline-flex items-center">
+      <PalabraCernace className={oscuro ? "text-crema" : "text-brand-dark"} />
     </Link>
   );
 }

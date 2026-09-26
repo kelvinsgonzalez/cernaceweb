@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { MarcaCernace } from "@/components/logo";
+import { PalabraCernace } from "@/components/logo";
 import { iconoNav } from "@/components/iconos-nav";
 import { agruparModulos, type ModuloVisible } from "@/lib/navegacion";
 import { cn, rutaActiva } from "@/lib/utils";
@@ -108,7 +108,7 @@ export function MenuFlotante({
             aria-label="Ir al inicio"
             className="group shrink-0"
           >
-            <MarcaCernace className="size-9" />
+            <PalabraCernace compacta className="text-brand-dark" />
           </Link>
 
           <div className="min-w-0 flex-1">
